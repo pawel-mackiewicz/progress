@@ -1,6 +1,7 @@
-@import 'tailwindcss';
-
-@theme {
+:root {
+  color-scheme: light;
+  font-family: 'Inter', 'Trebuchet MS', 'Gill Sans', 'Segoe UI', sans-serif;
+  background-color: var(--color-surface);
   --color-surface-container-lowest: #ffffff;
   --color-primary: #006d77;
   --color-on-primary: #ffffff;
@@ -14,12 +15,6 @@
   --font-headline: 'Space Grotesk', sans-serif;
   --font-body: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
-}
-
-:root {
-  color-scheme: light;
-  font-family: 'Inter', 'Trebuchet MS', 'Gill Sans', 'Segoe UI', sans-serif;
-  background-color: var(--color-surface);
 }
 
 *,
@@ -72,10 +67,6 @@ a {
   color: var(--color-on-surface);
   background-color: var(--color-surface);
   font-family: var(--font-body);
-}
-
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .visually-hidden {

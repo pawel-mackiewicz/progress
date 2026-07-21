@@ -3,7 +3,6 @@ import { fileURLToPath, URL } from 'node:url'
 
 import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
 import vue from '@vitejs/plugin-vue'
-import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vite'
 
@@ -19,7 +18,6 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(packageJson.version)
   },
   plugins: [
-    tailwindcss(),
     vue(),
     // The custom-block plugin keeps component-local <i18n> dictionaries available in the built PWA shell.
     VueI18nPlugin({}),

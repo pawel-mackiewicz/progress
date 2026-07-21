@@ -15,17 +15,12 @@ import { RouterLink, useRoute } from '@/ui/router/runtime'
 type BottomNavigationItem = ShellBottomNavigationItem & {
   active: boolean
   iconComponent: LucideIcon
-  stateClasses: string
   label: string
 }
 
 const iconComponents: Record<ShellBottomNavigationIconName, LucideIcon> = {
   house: House
 }
-
-const activeBottomNavStateClasses = 'bg-primary text-on-primary'
-const inactiveBottomNavStateClasses =
-  'text-on-surface hover:bg-surface-container-low'
 
 const route = useRoute()
 const { t } = useI18n({
@@ -47,27 +42,20 @@ const items = computed<BottomNavigationItem[]>(() =>
       ...item,
       active,
       iconComponent: iconComponents[item.icon],
-      label: t(item.labelKey),
-      stateClasses: active
-        ? activeBottomNavStateClasses
-        : inactiveBottomNavStateClasses
+      label: t(item.labelKey)
     }
   })
 )
 </script>
 
 <template>
-  <nav
-    v-if="visible"
-    class="fixed bottom-0 left-0 z-40 flex h-20 w-full items-stretch justify-around border-t border-on-surface/10 bg-surface/95 pb-safe backdrop-blur-md"
-    data-testid="bottom-navigation"
-  >
+  <nav v-if="visible" class="bottom-navigation" data-testid="bottom-navigation">
     <RouterLink
       v-for="item in items"
       :key="item.id"
       :aria-current="item.active ? 'page' : undefined"
-      class="flex w-full flex-col items-center justify-center gap-1 border-x border-on-surface/10 px-4 py-2 text-xs font-semibold transition-colors"
-      :class="item.stateClasses"
+      class="bottom-navigation__link"
+      :class="{ 'bottom-navigation__link--active': item.active }"
       :data-testid="`bottom-navigation-${item.id}`"
       :to="item.to"
     >
@@ -76,3 +64,58 @@ const items = computed<BottomNavigationItem[]>(() =>
     </RouterLink>
   </nav>
 </template>
+
+<style scoped>
+.bottom-navigation {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  width: 100%;
+  height: 5rem;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid rgb(from var(--color-on-surface) r g b / 0.1);
+  background: rgb(from var(--color-surface) r g b / 0.95);
+  backdrop-filter: blur(12px);
+}
+
+.bottom-navigation__link {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  border-inline: 1px solid rgb(from var(--color-on-surface) r g b / 0.1);
+  color: var(--color-on-surface);
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.bottom-navigation__link:hover,
+.bottom-navigation__link:focus-visible {
+  background: var(--color-surface-container-low);
+}
+
+.bottom-navigation__link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.bottom-navigation__link--active {
+  color: var(--color-on-primary);
+  background: var(--color-primary);
+}
+
+.bottom-navigation__link--active:hover,
+.bottom-navigation__link--active:focus-visible {
+  background: var(--color-primary);
+}
+</style>

@@ -56,7 +56,7 @@ describe('BottomNavigation', () => {
       true
     )
     expect(homeLink.attributes('aria-current')).toBe('page')
-    expect(homeLink.classes()).toContain('bg-primary')
+    expect(homeLink.classes()).toContain('bottom-navigation__link--active')
     expect(homeLink.text()).toContain('Home')
   })
 
