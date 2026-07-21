@@ -41,8 +41,10 @@ const appVersion = __APP_VERSION__
 .home-view {
   display: grid;
   align-content: center;
+  justify-items: center;
   min-height: calc(100vh - 11.5rem);
   gap: 1rem;
+  text-align: center;
 }
 
 .home-view__title {
@@ -66,15 +68,16 @@ const appVersion = __APP_VERSION__
 
 .home-view__status-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  grid-template-columns: 1fr;
   gap: 0.75rem;
-  max-width: 36rem;
+  width: min(100%, 22rem);
   margin: 1rem 0 0;
 }
 
 .home-view__status-item {
   display: grid;
   gap: 0.35rem;
+  justify-items: center;
   min-height: 5rem;
   padding: 1rem;
   border: 1px solid var(--color-outline);
