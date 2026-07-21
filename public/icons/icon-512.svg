@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Vue PWA Template icon">
+  <rect width="512" height="512" rx="112" fill="#006d77" />
+  <path d="M136 144h72l48 96 48-96h72L256 368 136 144Z" fill="#ffffff" />
+  <path d="M200 144h112l-56 112-56-112Z" fill="#83c5be" />
+</svg>

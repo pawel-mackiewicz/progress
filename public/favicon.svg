@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Vue PWA Template">
+  <rect width="64" height="64" rx="14" fill="#006d77" />
+  <path d="M17 18h9l6 12 6-12h9L32 46 17 18Z" fill="#ffffff" />
+  <path d="M25 18h14l-7 14-7-14Z" fill="#83c5be" />
+</svg>
