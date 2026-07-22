@@ -1,9 +1,8 @@
 import { mount } from '@vue/test-utils'
-import { reactive, ref, type Ref } from 'vue'
+import { reactive } from 'vue'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
 import Header from '@/ui/app-shell/Header.vue'
-import { useNetworkStatus } from '@/ui/composables/useNetworkStatus'
 import { createAppI18n } from '@/ui/i18n'
 import { useRoute, useRouter } from '@/ui/router/runtime'
 
@@ -15,23 +14,17 @@ type MockRoute = {
   params: Record<string, string | string[]>
 }
 
-vi.mock('@/ui/composables/useNetworkStatus', () => ({
-  useNetworkStatus: vi.fn()
-}))
-
 vi.mock('@/ui/router/runtime', () => ({
   useRoute: vi.fn(),
   useRouter: vi.fn()
 }))
 
 describe('Header', () => {
-  let isOnline: Ref<boolean>
   let mockRoute: MockRoute
   let mockRouterPush: Mock
   let mockRouterBack: Mock
 
   beforeEach(() => {
-    isOnline = ref(true)
     mockRoute = reactive({
       meta: {},
       name: 'home',
@@ -42,7 +35,6 @@ describe('Header', () => {
     mockRouterPush = vi.fn()
     mockRouterBack = vi.fn()
 
-    vi.mocked(useNetworkStatus).mockReturnValue({ isOnline })
     vi.mocked(useRoute).mockReturnValue(
       mockRoute as unknown as ReturnType<typeof useRoute>
     )
@@ -73,14 +65,6 @@ describe('Header', () => {
     expect(wrapper.find('[data-testid="shell-back-button"]').exists()).toBe(
       false
     )
-  })
-
-  it('warns the user when the installed PWA shell is offline', () => {
-    isOnline.value = false
-
-    const wrapper = mountHeader()
-
-    expect(wrapper.text()).toContain('Offline')
   })
 
   it('uses the explicit back target when a detail route defines one', async () => {

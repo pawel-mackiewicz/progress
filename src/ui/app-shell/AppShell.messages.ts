@@ -6,9 +6,6 @@ export const APP_SHELL_MESSAGES = {
     header: {
       back: 'Wroc'
     },
-    network: {
-      offline: 'Offline'
-    },
     routes: {
       home: 'Home'
     },
@@ -32,9 +29,6 @@ export const APP_SHELL_MESSAGES = {
     },
     header: {
       back: 'Go back'
-    },
-    network: {
-      offline: 'Offline'
     },
     routes: {
       home: 'Home'

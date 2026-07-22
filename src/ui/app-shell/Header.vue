@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { ArrowLeft, WifiOff } from '@lucide/vue'
+import { ArrowLeft } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { resolveShellRouteTitle } from '@/ui/app-shell/AppShell.config'
 import { APP_SHELL_MESSAGES } from '@/ui/app-shell/AppShell.messages'
-import { useNetworkStatus } from '@/ui/composables/useNetworkStatus'
 import type { AppRouteName } from '@/ui/router'
 import { useRoute, useRouter } from '@/ui/router/runtime'
 
@@ -15,7 +14,6 @@ defineOptions({
 
 const route = useRoute()
 const router = useRouter()
-const { isOnline } = useNetworkStatus()
 const { t } = useI18n({
   useScope: 'local',
   messages: APP_SHELL_MESSAGES
@@ -32,9 +30,7 @@ const title = computed(() =>
   })
 )
 const backButtonLabel = computed(() => t('header.back'))
-const offlineLabel = computed(() => t('network.offline'))
 const showBack = computed(() => Boolean(route.meta.showBack))
-const showOfflineBadge = computed(() => !isOnline.value)
 
 function handleBack() {
   const backTo =
@@ -86,11 +82,6 @@ function resolveBackTarget(backTo: string): string | null {
         {{ title }}
       </h1>
     </div>
-
-    <span v-if="showOfflineBadge" class="app-shell-header__offline-badge">
-      <WifiOff aria-hidden="true" :size="14" />
-      {{ offlineLabel }}
-    </span>
   </header>
 </template>
 
@@ -159,20 +150,5 @@ function resolveBackTarget(backTo: string): string | null {
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.app-shell-header__offline-badge {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 0.35rem;
-  border-radius: 999px;
-  border: 1px solid rgb(from var(--color-danger) r g b / 0.25);
-  background: rgb(from var(--color-danger) r g b / 0.08);
-  padding: 0.35rem 0.55rem;
-  color: var(--color-danger);
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  font-weight: 700;
 }
 </style>
