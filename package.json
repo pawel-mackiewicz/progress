@@ -25,8 +25,7 @@
     "test:storybook": "vitest run --project storybook",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "deploy": "pnpm run build && wrangler deploy --env prod",
-    "deploy:staging": "pnpm run build && wrangler deploy --env staging"
+    "deploy": "pnpm run build && wrangler deploy --env prod"
   },
   "dependencies": {
     "@lucide/vue": "^1.22.0",

@@ -12,9 +12,6 @@
   },
 
   "env": {
-    "staging": {
-      "name": "vue-pwa-template-staging"
-    },
     "prod": {
       "name": "vue-pwa-template"
     }

@@ -24,14 +24,19 @@ Update these files for each app created from the template:
 
 ## Step 2: Cloudflare
 
-`wrangler.jsonc` uses neutral worker names and no custom domains.
+`wrangler.jsonc` uses a neutral prod worker name and no custom domains.
 
 For a real app:
 
 - Set the top-level `name`.
-- Set `env.staging.name` and `env.prod.name`.
+- Set `env.prod.name`.
 - Add custom domain `routes` only when the domains are ready.
 - Keep `assets.not_found_handling` as `single-page-application` for Vue Router history mode.
+- Add these repository secrets before using GitHub Actions deployment:
+  - `CLOUDFLARE_API_TOKEN`: Cloudflare API token configured for Workers deploys.
+  - `CLOUDFLARE_ACCOUNT_ID`: Cloudflare account ID for the target account.
+- Follow Cloudflare's Workers GitHub Actions docs for the required API token permissions:
+  https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/#api-token
 
 Example route block:
 

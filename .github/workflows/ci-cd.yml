@@ -1,0 +1,202 @@
+name: CI/CD
+
+# Runs checks and Cloudflare deploys for this local-first PWA.
+# Pull requests and direct pushes to main run checks. Manual runs on main can
+# deploy prod. Deploy is gated by checks, except merge pushes that were already
+# checked as pull requests.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  classify-run:
+    name: Classify run
+    if: github.repository != 'pawel-mackiewicz/vue-pwa-template'
+    runs-on: ubuntu-24.04
+    outputs:
+      skip_checks: ${{ steps.classify.outputs.skip_checks }}
+
+    steps:
+      - name: Check whether push came from a merged PR
+        id: classify
+        uses: actions/github-script@v9
+        with:
+          script: |
+            if (context.eventName !== 'push') {
+              const skipChecks = 'false';
+              core.notice(`skip_checks=${skipChecks}`);
+              core.setOutput('skip_checks', skipChecks);
+              return;
+            }
+
+            const targetBranch = context.ref.replace('refs/heads/', '');
+            const { data: pulls } = await github.request(
+              'GET /repos/{owner}/{repo}/commits/{commit_sha}/pulls',
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: context.sha,
+              }
+            );
+
+            const mergedIntoTarget = pulls.some((pull) =>
+              pull.state === 'closed' &&
+              pull.merged_at &&
+              pull.base.ref === targetBranch
+            );
+
+            const skipChecks = mergedIntoTarget ? 'true' : 'false';
+            core.notice(`skip_checks=${skipChecks}`);
+            core.setOutput('skip_checks', skipChecks);
+
+  checks:
+    # Uses Node from .nvmrc and the Playwright image resolved from package.json.
+    # Runs typecheck, lint, unit tests, Playwright E2E tests, and build.
+    name: Checks
+    needs:
+      - classify-run
+      - resolve-playwright-image
+    if: |
+      github.repository != 'pawel-mackiewicz/vue-pwa-template' &&
+      needs.classify-run.outputs.skip_checks != 'true'
+    runs-on: ubuntu-24.04
+    container:
+      image: ${{ needs.resolve-playwright-image.outputs.image }}
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Light Tests
+        run: pnpm run test
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E Tests
+        run: pnpm run test:e2e
+
+      - name: Build
+        run: pnpm run build
+
+  resolve-playwright-image:
+    # Keeps the Playwright container image aligned with the dependency version.
+    name: Resolve Playwright image
+    needs: classify-run
+    if: |
+      github.repository != 'pawel-mackiewicz/vue-pwa-template' &&
+      needs.classify-run.outputs.skip_checks != 'true'
+    runs-on: ubuntu-24.04
+    outputs:
+      image: ${{ steps.resolve.outputs.image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Resolve image from package.json
+        id: resolve
+        run: |
+          playwright_version="$(node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+
+          const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+          const spec = pkg.devDependencies?.playwright ?? pkg.dependencies?.playwright;
+          if (!spec) {
+            throw new Error('Missing playwright dependency in package.json');
+          }
+
+          const match = spec.match(/\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?/);
+          if (!match) {
+            throw new Error(`Unsupported playwright version spec: ${spec}`);
+          }
+
+          console.log(match[0]);
+          NODE
+          )"
+          echo "image=mcr.microsoft.com/playwright:v${playwright_version}-noble" >> "$GITHUB_OUTPUT"
+
+  deploy-prod:
+    # Deploys to Cloudflare prod from main.
+    name: Deploy prod
+    needs:
+      - classify-run
+      - checks
+    if: |
+      always() &&
+      github.repository != 'pawel-mackiewicz/vue-pwa-template' &&
+      needs.classify-run.result == 'success' &&
+      github.ref == 'refs/heads/main' &&
+      (
+        needs.checks.result == 'success' ||
+        (
+          needs.checks.result == 'skipped' &&
+          needs.classify-run.outputs.skip_checks == 'true'
+        )
+      )
+    runs-on: ubuntu-24.04
+    environment: prod
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Deploy to Cloudflare prod
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --env prod
