@@ -22,7 +22,19 @@ Update these files for each app created from the template:
 - `vite.config.ts`: set the PWA manifest `name`, `short_name`, `description`, theme color, background color, and icon list.
 - `public/favicon.svg` and `public/icons/*`: replace the placeholder assets with app-specific icons.
 
-## Step 2: Cloudflare
+## Step 2: PWA Updates
+
+The current template registers the service worker immediately from `src/main.ts`, while `vite.config.ts` keeps `registerType: 'prompt'`.
+
+That means a deployed build can be discovered by the browser, but this template does not yet show a refresh prompt or force the app to switch versions. Users can stay on the old app shell until the service worker lifecycle naturally replaces it, usually after closing all app tabs/windows and reopening.
+
+Choose one update policy for each real app:
+
+- Keep `registerType: 'prompt'` when users may have unsaved work. Add an in-app update banner/dialog through `useRegisterSW({ onNeedRefresh })`, then call the returned `updateServiceWorker()` after the user accepts the refresh.
+- Switch to `registerType: 'autoUpdate'` when the app can safely reload open tabs as soon as new content is available.
+- Keep the current minimal setup only when delayed updates are acceptable and the app does not need visible update messaging.
+
+## Step 3: Cloudflare
 
 `wrangler.jsonc` uses a neutral prod worker name and no custom domains.
 
@@ -49,7 +61,7 @@ Example route block:
 ]
 ```
 
-## Step 3: Shell And Routes
+## Step 4: Shell And Routes
 
 The template ships with one route, `/`, rendered by `src/ui/views/HomeView.vue`.
 
@@ -62,7 +74,7 @@ When adding app screens:
 - Add a bottom navigation item only for primary mobile destinations.
 - Use route meta `showBack`, `backTo`, and `hideBottomNav` for detail or full-screen flows.
 
-## Step 4: Data Layer
+## Step 5: Data Layer
 
 No app data layer is included. Add storage only when the new app needs it.
 
@@ -72,7 +84,7 @@ Recommended defaults:
 - Use a small composable or Pinia store for UI-only state.
 - Add browser storage deliberately, with tests that describe the user flow and failure path.
 
-## Step 5: Tests
+## Step 6: Tests
 
 Keep tests story-like: name the user situation, action, and outcome.
 

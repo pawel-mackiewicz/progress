@@ -13,7 +13,7 @@ export default tseslint.config(
       'coverage/**',
       'storybook-static/**',
       'dev-dist/**',
-      '.temp/**',
+      '**/.temp/**',
       '.wrangler/**'
     ]
   },
