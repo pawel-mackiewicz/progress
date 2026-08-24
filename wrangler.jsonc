@@ -1,7 +1,7 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "vue-pwa-template",
-  "compatibility_date": "2026-04-03",
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "progress",
+  "compatibility_date": "2026-08-24",
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
@@ -13,7 +13,14 @@
 
   "env": {
     "prod": {
-      "name": "vue-pwa-template"
+      "name": "progress",
+      "workers_dev": false,
+      "routes": [
+        {
+          "pattern": "progress.mackiewicz.info",
+          "custom_domain": true
+        }
+      ]
     }
   }
 }
