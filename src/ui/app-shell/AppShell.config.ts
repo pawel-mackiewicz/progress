@@ -2,15 +2,6 @@ import type { AppLocale } from '@/ui/i18n'
 import type { AppRouteName } from '@/ui/router'
 
 type ShellTitleTranslator = (key: string) => string
-export type ShellBottomNavigationIconName = 'house'
-
-export type ShellBottomNavigationItem = {
-  id: 'home'
-  to: string
-  icon: ShellBottomNavigationIconName
-  labelKey: string
-  activeRouteNames: ReadonlyArray<AppRouteName>
-}
 
 export const SHELL_LOCALE_OPTIONS = [
   { value: 'pl', label: 'PL' },
@@ -18,19 +9,10 @@ export const SHELL_LOCALE_OPTIONS = [
 ] as const satisfies ReadonlyArray<{ value: AppLocale; label: string }>
 
 export const SHELL_ROUTE_TITLE_KEYS = {
-  home: 'routes.home'
+  home: 'routes.home',
+  'exercise-new': 'routes.exerciseNew',
+  'exercise-edit': 'routes.exerciseEdit'
 } as const satisfies Record<AppRouteName, string>
-
-export const SHELL_BOTTOM_NAVIGATION_ITEMS: ReadonlyArray<ShellBottomNavigationItem> =
-  [
-    {
-      id: 'home',
-      to: '/',
-      icon: 'house',
-      labelKey: 'bottomNav.home',
-      activeRouteNames: ['home']
-    }
-  ]
 
 export function resolveShellRouteTitle({
   routeName,

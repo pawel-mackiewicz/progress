@@ -21,7 +21,11 @@ const meta: Meta<HeaderStoryArgs> = {
   argTypes: {
     routeName: {
       control: { type: 'select' },
-      options: ['home'] satisfies AppRouteName[]
+      options: [
+        'home',
+        'exercise-new',
+        'exercise-edit'
+      ] satisfies AppRouteName[]
     },
     showBack: {
       control: 'boolean'
@@ -80,7 +84,7 @@ export const HomeHeader: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
 
-    await expect(canvas.getByText('Home')).toBeInTheDocument()
+    await expect(canvas.getByText('Progress')).toBeInTheDocument()
     await expect(
       canvas.queryByTestId('shell-back-button')
     ).not.toBeInTheDocument()

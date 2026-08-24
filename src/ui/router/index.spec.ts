@@ -1,32 +1,31 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  createAppRoutes,
-  createNavigationItems,
-  scrollToRouteTop
-} from '@/ui/router'
+import { createAppRoutes, scrollToRouteTop } from '@/ui/router'
 
 describe('router', () => {
-  it('opens the template on the neutral home route', () => {
+  it('opens the athlete on today and keeps both exercise forms one back tap away', () => {
     const routes = createAppRoutes()
 
-    expect(routes).toHaveLength(1)
-    expect(routes[0]).toMatchObject({
-      path: '/',
-      name: 'home',
-      meta: {
-        showInMenu: true
-      }
-    })
-  })
-
-  it('offers the home route as the reusable menu item', () => {
-    expect(createNavigationItems()).toEqual([
-      {
-        name: 'home',
-        to: '/'
-      }
-    ])
+    expect(routes).toHaveLength(3)
+    expect(routes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: '/',
+          name: 'home',
+          meta: {}
+        }),
+        expect.objectContaining({
+          path: '/exercises/new',
+          name: 'exercise-new',
+          meta: { showBack: true, backTo: '/' }
+        }),
+        expect.objectContaining({
+          path: '/exercises/:exerciseId/edit',
+          name: 'exercise-edit',
+          meta: { showBack: true, backTo: '/' }
+        })
+      ])
+    )
   })
 
   it('starts a fresh route at the top while preserving browser history scroll restores', () => {

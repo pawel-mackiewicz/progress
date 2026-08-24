@@ -16,7 +16,8 @@ type MockRoute = {
 
 vi.mock('@/ui/app-shell/RouteTransition.vue', () => ({
   default: {
-    template: '<section data-testid="route-view">Template home screen</section>'
+    template:
+      '<section data-testid="route-view">Today training screen</section>'
   }
 }))
 
@@ -64,15 +65,15 @@ describe('AppShell', () => {
     })
   }
 
-  it('shows a mobile PWA user the shell around the neutral home screen', () => {
+  it('frames today’s training without a redundant one-item bottom bar', () => {
     const wrapper = mountShell()
 
-    expect(wrapper.get('.app-shell-header__title').text()).toBe('Home')
+    expect(wrapper.get('.app-shell-header__title').text()).toBe('Progress')
     expect(wrapper.get('[data-testid="route-view"]').text()).toBe(
-      'Template home screen'
+      'Today training screen'
     )
-    expect(wrapper.get('[data-testid="bottom-navigation"]').text()).toContain(
-      'Home'
+    expect(wrapper.find('[data-testid="bottom-navigation"]').exists()).toBe(
+      false
     )
   })
 
@@ -80,16 +81,21 @@ describe('AppShell', () => {
     mountShell()
     await flushPromises()
 
-    expect(document.title).toBe('Home - Vue PWA Template')
+    expect(document.title).toBe('Progress')
   })
 
-  it('lets full-screen routes hide the mobile bottom navigation', () => {
+  it('keeps the shell navigation-free on focused form routes too', () => {
+    mockRoute.name = 'exercise-new'
     mockRoute.meta = {
-      hideBottomNav: true
+      showBack: true,
+      backTo: '/'
     }
 
     const wrapper = mountShell()
 
+    expect(wrapper.find('[data-testid="shell-back-button"]').exists()).toBe(
+      true
+    )
     expect(wrapper.find('[data-testid="bottom-navigation"]').exists()).toBe(
       false
     )

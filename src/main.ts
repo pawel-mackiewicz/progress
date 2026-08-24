@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 
+import { requestPersistentStorage } from './progress/repository'
 import { i18n } from './ui/i18n'
 import App from './ui/App.vue'
 import router from './ui/router'
@@ -13,5 +14,7 @@ registerPwa({
     console.error('Failed to register the service worker.', error)
   }
 })
+
+void requestPersistentStorage()
 
 createApp(App).use(i18n).use(router).mount('#app')

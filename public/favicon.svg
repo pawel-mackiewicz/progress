@@ -1,5 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Vue PWA Template">
-  <rect width="64" height="64" rx="14" fill="#006d77" />
-  <path d="M17 18h9l6 12 6-12h9L32 46 17 18Z" fill="#ffffff" />
-  <path d="M25 18h14l-7 14-7-14Z" fill="#83c5be" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Progress">
+  <defs>
+    <linearGradient id="background" x1="8" y1="5" x2="57" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#191943"/>
+      <stop offset="1" stop-color="#070711"/>
+    </linearGradient>
+    <linearGradient id="neon" x1="18" y1="16" x2="48" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#32EFFF"/>
+      <stop offset="1" stop-color="#C8FF38"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#background)"/>
+  <path d="M19 50V16h15c9 0 15 5 15 13 0 9-6 14-16 14h-6v7h-8Zm8-15h6c5 0 8-2 8-6s-3-6-8-6h-6v12Z" fill="url(#neon)"/>
+  <path d="m35 31-6 11h5l-3 8 11-13h-6l5-6h-6Z" fill="#FF3CAD"/>
 </svg>

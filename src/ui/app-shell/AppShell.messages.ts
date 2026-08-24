@@ -1,16 +1,16 @@
 export const APP_SHELL_MESSAGES = {
   pl: {
     app: {
-      name: 'Vue PWA Template'
+      name: 'Progress'
     },
     header: {
-      back: 'Wroc'
+      back: 'Wróć',
+      language: 'Język'
     },
     routes: {
-      home: 'Home'
-    },
-    bottomNav: {
-      home: 'Home'
+      home: 'Progress',
+      exerciseNew: 'Nowe ćwiczenie',
+      exerciseEdit: 'Edytuj ćwiczenie'
     },
     home: {
       eyebrow: 'Template',
@@ -25,16 +25,16 @@ export const APP_SHELL_MESSAGES = {
   },
   en: {
     app: {
-      name: 'Vue PWA Template'
+      name: 'Progress'
     },
     header: {
-      back: 'Go back'
+      back: 'Go back',
+      language: 'Language'
     },
     routes: {
-      home: 'Home'
-    },
-    bottomNav: {
-      home: 'Home'
+      home: 'Progress',
+      exerciseNew: 'New exercise',
+      exerciseEdit: 'Edit exercise'
     },
     home: {
       eyebrow: 'Template',

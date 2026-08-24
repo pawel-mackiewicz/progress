@@ -1,5 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Vue PWA Template icon">
-  <rect width="512" height="512" rx="112" fill="#006d77" />
-  <path d="M136 144h72l48 96 48-96h72L256 368 136 144Z" fill="#ffffff" />
-  <path d="M200 144h112l-56 112-56-112Z" fill="#83c5be" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Progress icon">
+  <defs>
+    <linearGradient id="background" x1="56" y1="48" x2="448" y2="466" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#191943"/>
+      <stop offset="1" stop-color="#070711"/>
+    </linearGradient>
+    <linearGradient id="neon" x1="140" y1="130" x2="375" y2="378" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#32EFFF"/>
+      <stop offset="1" stop-color="#C8FF38"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#background)"/>
+  <rect x="18" y="18" width="476" height="476" rx="96" fill="none" stroke="#32EFFF" stroke-opacity=".35" stroke-width="8"/>
+  <path d="M155 388V128h115c69 0 115 38 115 100 0 64-48 104-120 104h-46v56h-64Zm64-112h43c38 0 59-17 59-48 0-29-21-43-59-43h-43v91Z" fill="url(#neon)"/>
+  <path d="m275 244-48 80h43l-22 67 80-96h-45l35-51h-43Z" fill="#FF3CAD"/>
 </svg>

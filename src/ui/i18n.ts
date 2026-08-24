@@ -1,6 +1,6 @@
 import { createI18n } from 'vue-i18n'
 
-export const APP_LOCALE_STORAGE_KEY = 'vue-pwa-template:locale'
+export const APP_LOCALE_STORAGE_KEY = 'progress:locale'
 export const APP_LOCALES = ['pl', 'en'] as const
 export const APP_FALLBACK_LOCALE = 'en' as const
 export const APP_DEFAULT_LOCALE = 'pl' as const

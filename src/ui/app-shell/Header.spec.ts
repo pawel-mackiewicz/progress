@@ -58,13 +58,26 @@ describe('Header', () => {
     })
   }
 
-  it('shows a first-time template user the neutral home title', () => {
+  it('welcomes the athlete with the product name and no unnecessary back button', () => {
     const wrapper = mountHeader()
 
-    expect(wrapper.get('.app-shell-header__title').text()).toBe('Home')
+    expect(wrapper.get('.app-shell-header__title').text()).toBe('Progress')
     expect(wrapper.find('[data-testid="shell-back-button"]').exists()).toBe(
       false
     )
+    expect(wrapper.get('button[aria-pressed="true"]').text()).toBe('EN')
+  })
+
+  it('switches the whole app language and remembers the athlete’s choice', async () => {
+    const wrapper = mountHeader()
+    const polishButton = wrapper
+      .findAll('.app-shell-header__locale-button')
+      .find((button) => button.text() === 'PL')
+
+    await polishButton?.trigger('click')
+
+    expect(wrapper.get('button[aria-pressed="true"]').text()).toBe('PL')
+    expect(window.localStorage.getItem('progress:locale')).toBe('pl')
   })
 
   it('uses the explicit back target when a detail route defines one', async () => {

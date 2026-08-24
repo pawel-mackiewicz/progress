@@ -2,15 +2,14 @@ import type { RouteRecordRaw, RouterOptions } from '@/ui/router/runtime'
 import { createRouter, createWebHistory } from '@/ui/router/runtime'
 
 import HomeView from '@/ui/views/HomeView.vue'
+import ExerciseFormView from '@/ui/views/ExerciseFormView.vue'
 
 type AppRouteMeta = {
   showBack?: boolean
-  hideBottomNav?: boolean
   backTo?: string
-  showInMenu?: boolean
 }
 
-export type AppRouteName = 'home'
+export type AppRouteName = 'home' | 'exercise-new' | 'exercise-edit'
 
 type AppRoute = RouteRecordRaw & {
   name: AppRouteName
@@ -18,37 +17,35 @@ type AppRoute = RouteRecordRaw & {
   meta: AppRouteMeta
 }
 
-export type NavigationItem = {
-  name: AppRouteName
-  to: string
-}
-
 const baseRoutes = [
   {
     path: '/',
     name: 'home',
     component: HomeView,
+    meta: {}
+  },
+  {
+    path: '/exercises/new',
+    name: 'exercise-new',
+    component: ExerciseFormView,
     meta: {
-      showInMenu: true
+      showBack: true,
+      backTo: '/'
+    }
+  },
+  {
+    path: '/exercises/:exerciseId/edit',
+    name: 'exercise-edit',
+    component: ExerciseFormView,
+    meta: {
+      showBack: true,
+      backTo: '/'
     }
   }
 ] satisfies AppRoute[]
 
 export function createAppRoutes(): AppRoute[] {
   return [...baseRoutes]
-}
-
-export function createNavigationItems(): NavigationItem[] {
-  return createAppRoutes().flatMap((route) => {
-    return route.meta.showInMenu
-      ? [
-          {
-            name: route.name,
-            to: route.path
-          }
-        ]
-      : []
-  })
 }
 
 export const scrollToRouteTop: NonNullable<RouterOptions['scrollBehavior']> = (

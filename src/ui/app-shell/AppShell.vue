@@ -2,7 +2,6 @@
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import BottomNavigation from '@/ui/app-shell/BottomNavigation.vue'
 import Header from '@/ui/app-shell/Header.vue'
 import RouteTransition from '@/ui/app-shell/RouteTransition.vue'
 import { resolveShellRouteTitle } from '@/ui/app-shell/AppShell.config'
@@ -45,8 +44,6 @@ watch(
     <main class="app-shell-main">
       <RouteTransition />
     </main>
-
-    <BottomNavigation />
   </div>
 </template>
 
@@ -55,7 +52,8 @@ watch(
   min-height: 100vh;
   width: min(100%, 56rem);
   margin-inline: auto;
-  padding: 5rem 1rem 6.5rem;
+  padding: 5.5rem max(1rem, env(safe-area-inset-right))
+    max(3rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
 }
 
 @media (min-width: 48rem) {
