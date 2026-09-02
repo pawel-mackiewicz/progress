@@ -95,6 +95,10 @@ export class DexieProgressQueries implements ProgressQueries {
     const todayTotals = sumRepsByExercise(
       repLogs.filter((repLog) => repLog.day === day)
     )
+    const yesterday = shiftLocalDay(day, -1)
+    const yesterdayTotals = sumRepsByExercise(
+      repLogs.filter((repLog) => repLog.day === yesterday)
+    )
     const previousMaximums = findPreviousMaxReps(
       repLogs.filter((repLog) => repLog.day < day)
     )
@@ -110,6 +114,7 @@ export class DexieProgressQueries implements ProgressQueries {
           100
         ),
         isComplete: completedReps >= exercise.dailyGoal,
+        yesterdayReps: yesterdayTotals.get(exercise.id) ?? 0,
         previousMaxReps: previousMaximums.get(exercise.id) ?? 0
       }
     })

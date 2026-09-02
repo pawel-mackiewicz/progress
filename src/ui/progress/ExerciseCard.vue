@@ -57,9 +57,14 @@ const { t } = useI18n({
     <div class="exercise-card__score-row">
       <strong class="exercise-card__score">{{ exercise.completedReps }}</strong>
       <span class="exercise-card__goal">/ {{ exercise.dailyGoal }}</span>
-      <span class="exercise-card__previous-max">
-        {{ t('card.previousMax', { count: exercise.previousMaxReps }) }}
-      </span>
+      <div class="exercise-card__history">
+        <span class="exercise-card__history-item">
+          {{ t('card.yesterday', { count: exercise.yesterdayReps }) }}
+        </span>
+        <span class="exercise-card__history-item">
+          {{ t('card.previousMax', { count: exercise.previousMaxReps }) }}
+        </span>
+      </div>
     </div>
 
     <div
@@ -228,8 +233,14 @@ const { t } = useI18n({
   font-weight: 700;
 }
 
-.exercise-card__previous-max {
+.exercise-card__history {
+  display: grid;
+  gap: 0.2rem;
   margin-inline-start: auto;
+  text-align: end;
+}
+
+.exercise-card__history-item {
   color: var(--color-secondary);
   font-family: var(--font-mono);
   font-size: 0.72rem;

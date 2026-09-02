@@ -198,4 +198,28 @@ describe('a training day saved on the athlete’s device', () => {
       previousMaxReps: 0
     })
   })
+
+  it('remembers exactly what each exercise achieved yesterday', async () => {
+    const pushUps = await givenAnExercise('Push-ups', 40)
+    const squats = await givenAnExercise('Squats', 50)
+
+    await whenTheAthleteAdds(pushUps.id, 10, '2026-08-22')
+    await whenTheAthleteAdds(pushUps.id, 10, '2026-08-23')
+    await whenTheAthleteAdds(pushUps.id, 5, '2026-08-23')
+    await whenTheAthleteAdds(pushUps.id, 10)
+    await whenTheAthleteAdds(squats.id, 5, '2026-08-22')
+
+    const dashboard = await readDashboard()
+
+    expect(
+      dashboard.exercises.find((exercise) => exercise.id === pushUps.id)
+    ).toMatchObject({
+      yesterdayReps: 15
+    })
+    expect(
+      dashboard.exercises.find((exercise) => exercise.id === squats.id)
+    ).toMatchObject({
+      yesterdayReps: 0
+    })
+  })
 })

@@ -17,6 +17,7 @@ describe('an exercise card during today’s quest', () => {
       remainingReps: 35,
       progressPercent: 13,
       isComplete: false,
+      yesterdayReps: 15,
       previousMaxReps: 25,
       createdAt: '2026-08-24T08:00:00.000Z',
       updatedAt: '2026-08-24T08:00:00.000Z',
@@ -38,15 +39,19 @@ describe('an exercise card during today’s quest', () => {
     expect(card.text()).toContain('5')
     expect(card.text()).toContain('/ 40')
     expect(card.text()).toContain('35 to go')
+    expect(card.text()).toContain('Yesterday: 15')
     expect(card.text()).toContain('Previous max: 25')
     expect(card.get('[role="progressbar"]').attributes('aria-valuenow')).toBe(
       '5'
     )
   })
 
-  it('shows a zero previous maximum for an athlete starting fresh', () => {
-    const card = showCard(givenProgress({ previousMaxReps: 0 }))
+  it('shows an honest empty history for an athlete starting fresh', () => {
+    const card = showCard(
+      givenProgress({ yesterdayReps: 0, previousMaxReps: 0 })
+    )
 
+    expect(card.text()).toContain('Yesterday: 0')
     expect(card.text()).toContain('Previous max: 0')
   })
 

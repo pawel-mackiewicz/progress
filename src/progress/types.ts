@@ -34,6 +34,7 @@ export type DashboardExercise = Exercise & {
   remainingReps: number
   progressPercent: number
   isComplete: boolean
+  yesterdayReps: number
   previousMaxReps: number
 }
 
