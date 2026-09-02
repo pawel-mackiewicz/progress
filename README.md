@@ -24,15 +24,14 @@ Update these files for each app created from the template:
 
 ## Step 2: PWA Updates
 
-The current template registers the service worker immediately from `src/main.ts`, while `vite.config.ts` keeps `registerType: 'prompt'`.
+The app registers the service worker immediately from `src/main.ts`, while `vite.config.ts` uses `registerType: 'autoUpdate'`.
 
-That means a deployed build can be discovered by the browser, but this template does not yet show a refresh prompt or force the app to switch versions. Users can stay on the old app shell until the service worker lifecycle naturally replaces it, usually after closing all app tabs/windows and reopening.
+That means a newly discovered deployment activates and reloads the open app without asking the user, keeping the installed PWA on the latest available version.
 
-Choose one update policy for each real app:
+If a future app introduces unsaved form state, reconsider the update policy:
 
-- Keep `registerType: 'prompt'` when users may have unsaved work. Add an in-app update banner/dialog through `useRegisterSW({ onNeedRefresh })`, then call the returned `updateServiceWorker()` after the user accepts the refresh.
-- Switch to `registerType: 'autoUpdate'` when the app can safely reload open tabs as soon as new content is available.
-- Keep the current minimal setup only when delayed updates are acceptable and the app does not need visible update messaging.
+- Keep `registerType: 'autoUpdate'` while reloading cannot discard user work.
+- Switch to `registerType: 'prompt'` when users may have unsaved work. Add an in-app update banner/dialog through `useRegisterSW({ onNeedRefresh })`, then call the returned `updateServiceWorker()` after the user accepts the refresh.
 
 ## Step 3: Cloudflare
 

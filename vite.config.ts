@@ -22,8 +22,8 @@ export default defineConfig({
     // The custom-block plugin keeps component-local <i18n> dictionaries available in the built PWA shell.
     VueI18nPlugin({}),
     VitePWA({
-      // Prompt mode lets a newly deployed shell download quietly until the app asks the user to refresh.
-      registerType: 'prompt',
+      // The app has no unsaved form state, so newly deployed shells can activate without waiting for user confirmation.
+      registerType: 'autoUpdate',
       injectRegister: 'auto',
       includeAssets: ['favicon.svg'],
       manifest: {
