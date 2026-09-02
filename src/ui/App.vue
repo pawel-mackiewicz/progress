@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { provideProgressRepository } from '@/progress/context'
+import { provideProgressServices } from '@/progress/context'
 
 import AppShell from './app-shell/AppShell.vue'
 
-provideProgressRepository()
+provideProgressServices()
 </script>
 
 <template>

@@ -2,11 +2,11 @@
 import { Check, Pencil, Zap } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 
-import { REP_INCREMENTS, type ExerciseProgress } from '@/progress/types'
+import { REP_INCREMENTS, type DashboardExercise } from '@/progress/types'
 import { PROGRESS_MESSAGES } from '@/ui/progress/Progress.messages'
 
 defineProps<{
-  exercise: ExerciseProgress
+  exercise: DashboardExercise
 }>()
 
 const emit = defineEmits<{
@@ -57,6 +57,9 @@ const { t } = useI18n({
     <div class="exercise-card__score-row">
       <strong class="exercise-card__score">{{ exercise.completedReps }}</strong>
       <span class="exercise-card__goal">/ {{ exercise.dailyGoal }}</span>
+      <span class="exercise-card__previous-max">
+        {{ t('card.previousMax', { count: exercise.previousMaxReps }) }}
+      </span>
     </div>
 
     <div
@@ -206,6 +209,7 @@ const { t } = useI18n({
 
 .exercise-card__score-row {
   align-items: baseline;
+  flex-wrap: wrap;
   gap: 0.45rem;
 }
 
@@ -222,6 +226,16 @@ const { t } = useI18n({
   font-family: var(--font-mono);
   font-size: 1.05rem;
   font-weight: 700;
+}
+
+.exercise-card__previous-max {
+  margin-inline-start: auto;
+  color: var(--color-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .exercise-card__progress {

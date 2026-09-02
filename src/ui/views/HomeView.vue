@@ -3,15 +3,16 @@ import { ArchiveRestore, Flame, Plus, Trophy } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useProgressRepository } from '@/progress/context'
+import { useProgressCommands, useProgressQueries } from '@/progress/context'
 import { monthRange, toLocalDayKey } from '@/progress/date'
-import type { HomeSnapshot, RepIncrement } from '@/progress/types'
+import type { DashboardSnapshot, RepIncrement } from '@/progress/types'
 import CompletionCalendar from '@/ui/progress/CompletionCalendar.vue'
 import ExerciseCard from '@/ui/progress/ExerciseCard.vue'
 import { PROGRESS_MESSAGES } from '@/ui/progress/Progress.messages'
 import { RouterLink, useRouter } from '@/ui/router/runtime'
 
-const repository = useProgressRepository()
+const queries = useProgressQueries()
+const commands = useProgressCommands()
 const router = useRouter()
 const { locale, t } = useI18n({
   useScope: 'local',
@@ -22,7 +23,7 @@ const now = ref(new Date())
 const selectedMonth = ref(
   new Date(now.value.getFullYear(), now.value.getMonth(), 1)
 )
-const snapshot = ref<HomeSnapshot | null>(null)
+const snapshot = ref<DashboardSnapshot | null>(null)
 const loading = ref(true)
 const loadError = ref(false)
 const actionError = ref(false)
@@ -53,7 +54,7 @@ async function loadSnapshot() {
   const range = monthRange(selectedMonth.value)
 
   try {
-    const nextSnapshot = await repository.getHomeSnapshot(
+    const nextSnapshot = await queries.getDashboard(
       today.value,
       range.firstDayKey,
       range.lastDayKey
@@ -82,7 +83,7 @@ async function addReps(
   actionError.value = false
 
   try {
-    const result = await repository.recordReps(exerciseId, amount, today.value)
+    const result = await commands.recordReps(exerciseId, amount, today.value)
     lastRepLogId.value = result.repLogId
     undoCopy.value = t('home.undoMessage', {
       count: amount,
@@ -110,7 +111,7 @@ async function undoLastReps() {
   clearTimeout(snackbarTimer)
 
   try {
-    await repository.undoRepLog(repLogId)
+    await commands.undoRepLog(repLogId)
     showCelebration.value = false
     clearTimeout(celebrationTimer)
     await loadSnapshot()
@@ -123,7 +124,7 @@ async function restoreExercise(exerciseId: string) {
   actionError.value = false
 
   try {
-    await repository.restoreExercise(exerciseId, today.value)
+    await commands.restoreExercise(exerciseId, today.value)
     await loadSnapshot()
   } catch {
     actionError.value = true

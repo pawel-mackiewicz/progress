@@ -3,13 +3,14 @@ import { Archive, Save, Sparkles } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useProgressRepository } from '@/progress/context'
+import { useProgressCommands, useProgressQueries } from '@/progress/context'
 import { toLocalDayKey } from '@/progress/date'
-import { DuplicateExerciseNameError } from '@/progress/repository'
+import { DuplicateExerciseNameError } from '@/progress/commands'
 import { PROGRESS_MESSAGES } from '@/ui/progress/Progress.messages'
 import { useRoute, useRouter } from '@/ui/router/runtime'
 
-const repository = useProgressRepository()
+const queries = useProgressQueries()
+const commands = useProgressCommands()
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n({
@@ -56,9 +57,9 @@ async function saveExercise() {
 
   try {
     if (exerciseId.value) {
-      await repository.updateExercise(exerciseId.value, draft, toLocalDayKey())
+      await commands.updateExercise(exerciseId.value, draft, toLocalDayKey())
     } else {
-      await repository.createExercise(draft, toLocalDayKey())
+      await commands.createExercise(draft, toLocalDayKey())
     }
 
     await router.push('/')
@@ -84,7 +85,7 @@ async function archiveExercise() {
   formError.value = ''
 
   try {
-    await repository.archiveExercise(exerciseId.value, toLocalDayKey())
+    await commands.archiveExercise(exerciseId.value, toLocalDayKey())
     await router.push('/')
   } catch {
     formError.value = t('form.saveError')
@@ -101,7 +102,7 @@ onMounted(async () => {
   loading.value = true
 
   try {
-    const exercise = await repository.getExercise(exerciseId.value)
+    const exercise = await queries.getExercise(exerciseId.value)
 
     if (!exercise || exercise.archivedAt) {
       formError.value = t('form.notFound')

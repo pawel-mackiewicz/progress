@@ -29,16 +29,17 @@ export type DailyCompletion = {
 
 export type ExerciseDraft = Pick<Exercise, 'name' | 'dailyGoal'>
 
-export type ExerciseProgress = Exercise & {
+export type DashboardExercise = Exercise & {
   completedReps: number
   remainingReps: number
   progressPercent: number
   isComplete: boolean
+  previousMaxReps: number
 }
 
-export type HomeSnapshot = {
+export type DashboardSnapshot = {
   day: LocalDayKey
-  exercises: ExerciseProgress[]
+  exercises: DashboardExercise[]
   archivedExercises: Exercise[]
   completedDays: LocalDayKey[]
   isDayComplete: boolean
@@ -50,13 +51,16 @@ export type RecordRepsResult = {
   didEarnDay: boolean
 }
 
-export interface ProgressRepository {
+export interface ProgressQueries {
   getExercise(id: string): Promise<Exercise | undefined>
-  getHomeSnapshot(
+  getDashboard(
     day: LocalDayKey,
     monthStart: LocalDayKey,
     monthEnd: LocalDayKey
-  ): Promise<HomeSnapshot>
+  ): Promise<DashboardSnapshot>
+}
+
+export interface ProgressCommands {
   createExercise(draft: ExerciseDraft, day: LocalDayKey): Promise<Exercise>
   updateExercise(
     id: string,

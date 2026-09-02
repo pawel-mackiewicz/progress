@@ -1,24 +1,38 @@
 import { inject, provide, type InjectionKey } from 'vue'
 
-import { progressRepository } from '@/progress/repository'
-import type { ProgressRepository } from '@/progress/types'
+import { progressCommands } from '@/progress/commands'
+import { progressQueries } from '@/progress/queries'
+import type { ProgressCommands, ProgressQueries } from '@/progress/types'
 
-const PROGRESS_REPOSITORY_KEY: InjectionKey<ProgressRepository> = Symbol(
-  'progress-repository'
-)
+const PROGRESS_QUERIES_KEY: InjectionKey<ProgressQueries> =
+  Symbol('progress-queries')
+const PROGRESS_COMMANDS_KEY: InjectionKey<ProgressCommands> =
+  Symbol('progress-commands')
 
-export function provideProgressRepository(
-  repository: ProgressRepository = progressRepository
+export function provideProgressServices(
+  queries: ProgressQueries = progressQueries,
+  commands: ProgressCommands = progressCommands
 ) {
-  provide(PROGRESS_REPOSITORY_KEY, repository)
+  provide(PROGRESS_QUERIES_KEY, queries)
+  provide(PROGRESS_COMMANDS_KEY, commands)
 }
 
-export function useProgressRepository() {
-  const repository = inject(PROGRESS_REPOSITORY_KEY)
+export function useProgressQueries() {
+  const queries = inject(PROGRESS_QUERIES_KEY)
 
-  if (!repository) {
-    throw new Error('Progress repository was not provided.')
+  if (!queries) {
+    throw new Error('Progress queries were not provided.')
   }
 
-  return repository
+  return queries
+}
+
+export function useProgressCommands() {
+  const commands = inject(PROGRESS_COMMANDS_KEY)
+
+  if (!commands) {
+    throw new Error('Progress commands were not provided.')
+  }
+
+  return commands
 }

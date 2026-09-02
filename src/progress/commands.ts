@@ -1,13 +1,9 @@
-import Dexie, { type EntityTable } from 'dexie'
-
-import { shiftLocalDay, type LocalDayKey } from '@/progress/date'
+import { progressDatabase, type ProgressDatabase } from '@/progress/database'
+import type { LocalDayKey } from '@/progress/date'
 import type {
-  DailyCompletion,
   Exercise,
   ExerciseDraft,
-  ExerciseProgress,
-  HomeSnapshot,
-  ProgressRepository,
+  ProgressCommands,
   RecordRepsResult,
   RepIncrement,
   RepLog
@@ -17,106 +13,16 @@ export class DuplicateExerciseNameError extends Error {}
 export class ExerciseNotFoundError extends Error {}
 export class ExerciseArchivedError extends Error {}
 
-export class ProgressDatabase extends Dexie {
-  exercises!: EntityTable<Exercise, 'id'>
-  repLogs!: EntityTable<RepLog, 'id'>
-  dailyCompletions!: EntityTable<DailyCompletion, 'day'>
-
-  constructor(name = 'progress') {
-    super(name)
-
-    this.version(1).stores({
-      exercises: 'id, archivedAt, createdAt',
-      repLogs: 'id, day, [exerciseId+day], createdAt',
-      dailyCompletions: 'day, earnedAt'
-    })
-  }
-}
-
 function normalizeExerciseName(name: string) {
   return name.trim().toLocaleLowerCase()
 }
 
-function sortExercises(exercises: Exercise[]) {
-  return [...exercises].sort((first, second) =>
-    first.createdAt.localeCompare(second.createdAt)
-  )
-}
-
-function calculateStreak(completedDays: Set<LocalDayKey>, today: LocalDayKey) {
-  let cursor = completedDays.has(today) ? today : shiftLocalDay(today, -1)
-  let streak = 0
-
-  while (completedDays.has(cursor)) {
-    streak += 1
-    cursor = shiftLocalDay(cursor, -1)
-  }
-
-  return streak
-}
-
-export class DexieProgressRepository implements ProgressRepository {
+export class DexieProgressCommands implements ProgressCommands {
   constructor(
     private readonly database: ProgressDatabase,
     private readonly now: () => Date = () => new Date(),
     private readonly createId: () => string = () => crypto.randomUUID()
   ) {}
-
-  async getExercise(id: string) {
-    return this.database.exercises.get(id)
-  }
-
-  async getHomeSnapshot(
-    day: LocalDayKey,
-    monthStart: LocalDayKey,
-    monthEnd: LocalDayKey
-  ): Promise<HomeSnapshot> {
-    const [allExercises, repLogs, visibleCompletions, allCompletions] =
-      await Promise.all([
-        this.database.exercises.toArray(),
-        this.database.repLogs.where('day').equals(day).toArray(),
-        this.database.dailyCompletions
-          .where('day')
-          .between(monthStart, monthEnd, true, true)
-          .toArray(),
-        this.database.dailyCompletions.toArray()
-      ])
-
-    const activeExercises = sortExercises(
-      allExercises.filter((exercise) => !exercise.archivedAt)
-    )
-    const totals = this.sumRepsByExercise(repLogs)
-    const exercises = activeExercises.map<ExerciseProgress>((exercise) => {
-      const completedReps = totals.get(exercise.id) ?? 0
-
-      return {
-        ...exercise,
-        completedReps,
-        remainingReps: Math.max(exercise.dailyGoal - completedReps, 0),
-        progressPercent: Math.min(
-          Math.round((completedReps / exercise.dailyGoal) * 100),
-          100
-        ),
-        isComplete: completedReps >= exercise.dailyGoal
-      }
-    })
-    const completedDaySet = new Set(
-      allCompletions.map((completion) => completion.day)
-    )
-
-    return {
-      day,
-      exercises,
-      archivedExercises: allExercises
-        .filter((exercise) => exercise.archivedAt)
-        .sort((first, second) =>
-          String(second.archivedAt).localeCompare(String(first.archivedAt))
-        ),
-      completedDays: visibleCompletions.map((completion) => completion.day),
-      isDayComplete: completedDaySet.has(day),
-      currentStreak: calculateStreak(completedDaySet, day)
-    }
-  }
 
   async createExercise(draft: ExerciseDraft, _day: LocalDayKey) {
     void _day
@@ -353,17 +259,4 @@ export class DexieProgressRepository implements ProgressRepository {
   }
 }
 
-export const progressDatabase = new ProgressDatabase()
-export const progressRepository = new DexieProgressRepository(progressDatabase)
-
-export async function requestPersistentStorage() {
-  if (!navigator.storage?.persist) {
-    return false
-  }
-
-  try {
-    return await navigator.storage.persist()
-  } catch {
-    return false
-  }
-}
+export const progressCommands = new DexieProgressCommands(progressDatabase)

@@ -2,8 +2,12 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent, reactive } from 'vue'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
-import { provideProgressRepository } from '@/progress/context'
-import type { Exercise, ProgressRepository } from '@/progress/types'
+import { provideProgressServices } from '@/progress/context'
+import type {
+  Exercise,
+  ProgressCommands,
+  ProgressQueries
+} from '@/progress/types'
 import { createAppI18n } from '@/ui/i18n'
 import { useRoute, useRouter } from '@/ui/router/runtime'
 import ExerciseFormView from '@/ui/views/ExerciseFormView.vue'
@@ -15,15 +19,18 @@ vi.mock('@/ui/router/runtime', () => ({
 
 describe('the exercise mission form', () => {
   let route: { params: Record<string, string> }
-  let repository: ProgressRepository
+  let queries: ProgressQueries
+  let commands: ProgressCommands
   let push: Mock
 
   beforeEach(() => {
     route = reactive({ params: {} })
     push = vi.fn().mockResolvedValue(undefined)
-    repository = {
+    queries = {
       getExercise: vi.fn().mockResolvedValue(undefined),
-      getHomeSnapshot: vi.fn(),
+      getDashboard: vi.fn()
+    }
+    commands = {
       createExercise: vi.fn(),
       updateExercise: vi.fn(),
       archiveExercise: vi.fn(),
@@ -44,7 +51,7 @@ describe('the exercise mission form', () => {
     const Host = defineComponent({
       components: { ExerciseFormView },
       setup() {
-        provideProgressRepository(repository)
+        provideProgressServices(queries, commands)
       },
       template: '<ExerciseFormView />'
     })
@@ -61,7 +68,7 @@ describe('the exercise mission form', () => {
 
     expect(form.text()).toContain('Enter an exercise name.')
     expect(form.text()).toContain('positive whole number')
-    expect(repository.createExercise).not.toHaveBeenCalled()
+    expect(commands.createExercise).not.toHaveBeenCalled()
   })
 
   it('turns a name and daily target into a new active quest', async () => {
@@ -73,7 +80,7 @@ describe('the exercise mission form', () => {
     await form.get('form').trigger('submit')
     await flushPromises()
 
-    expect(repository.createExercise).toHaveBeenCalledWith(
+    expect(commands.createExercise).toHaveBeenCalledWith(
       { name: 'Push-ups', dailyGoal: 100 },
       expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
     )
@@ -90,7 +97,7 @@ describe('the exercise mission form', () => {
       archivedAt: null
     }
     route.params = { exerciseId: exercise.id }
-    vi.mocked(repository.getExercise).mockResolvedValue(exercise)
+    vi.mocked(queries.getExercise).mockResolvedValue(exercise)
     const confirm = vi.fn().mockReturnValue(true)
     Object.defineProperty(window, 'confirm', {
       configurable: true,
@@ -108,7 +115,7 @@ describe('the exercise mission form', () => {
     expect(confirm).toHaveBeenCalledWith(
       'Archive “Pull-ups”? Its history will stay safe.'
     )
-    expect(repository.archiveExercise).toHaveBeenCalledWith(
+    expect(commands.archiveExercise).toHaveBeenCalledWith(
       'pull-ups',
       expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
     )

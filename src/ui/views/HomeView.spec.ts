@@ -2,9 +2,13 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { defineComponent } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { provideProgressRepository } from '@/progress/context'
+import { provideProgressServices } from '@/progress/context'
 import { toLocalDayKey } from '@/progress/date'
-import type { HomeSnapshot, ProgressRepository } from '@/progress/types'
+import type {
+  DashboardSnapshot,
+  ProgressCommands,
+  ProgressQueries
+} from '@/progress/types'
 import { createAppI18n } from '@/ui/i18n'
 import { useRouter } from '@/ui/router/runtime'
 import HomeView from '@/ui/views/HomeView.vue'
@@ -19,9 +23,12 @@ vi.mock('@/ui/router/runtime', () => ({
 
 describe('today’s arcade training dashboard', () => {
   const today = toLocalDayKey()
-  let repository: ProgressRepository
+  let queries: ProgressQueries
+  let commands: ProgressCommands
 
-  function snapshot(overrides: Partial<HomeSnapshot> = {}): HomeSnapshot {
+  function snapshot(
+    overrides: Partial<DashboardSnapshot> = {}
+  ): DashboardSnapshot {
     return {
       day: today,
       exercises: [],
@@ -37,9 +44,11 @@ describe('today’s arcade training dashboard', () => {
     vi.mocked(useRouter).mockReturnValue({
       push: vi.fn()
     } as unknown as ReturnType<typeof useRouter>)
-    repository = {
+    queries = {
       getExercise: vi.fn(),
-      getHomeSnapshot: vi.fn().mockResolvedValue(snapshot()),
+      getDashboard: vi.fn().mockResolvedValue(snapshot())
+    }
+    commands = {
       createExercise: vi.fn(),
       updateExercise: vi.fn(),
       archiveExercise: vi.fn(),
@@ -53,7 +62,7 @@ describe('today’s arcade training dashboard', () => {
     const Host = defineComponent({
       components: { HomeView },
       setup() {
-        provideProgressRepository(repository)
+        provideProgressServices(queries, commands)
       },
       template: '<HomeView />'
     })
@@ -85,6 +94,7 @@ describe('today’s arcade training dashboard', () => {
           remainingReps: 5,
           progressPercent: 50,
           isComplete: false,
+          previousMaxReps: 15,
           createdAt: '2026-08-24T08:00:00.000Z',
           updatedAt: '2026-08-24T08:00:00.000Z',
           archivedAt: null
@@ -105,10 +115,10 @@ describe('today’s arcade training dashboard', () => {
       isDayComplete: true,
       currentStreak: 1
     })
-    vi.mocked(repository.getHomeSnapshot)
+    vi.mocked(queries.getDashboard)
       .mockResolvedValueOnce(activeDay)
       .mockResolvedValueOnce(clearedDay)
-    vi.mocked(repository.recordReps).mockResolvedValue({
+    vi.mocked(commands.recordReps).mockResolvedValue({
       repLogId: 'winning-set',
       didEarnDay: true
     })
@@ -120,7 +130,7 @@ describe('today’s arcade training dashboard', () => {
       .trigger('click')
     await flushPromises()
 
-    expect(repository.recordReps).toHaveBeenCalledWith('push-ups', 5, today)
+    expect(commands.recordReps).toHaveBeenCalledWith('push-ups', 5, today)
     expect(dashboard.text()).toContain('Quest complete!')
     expect(dashboard.text()).toContain('1 day streak')
     expect(dashboard.get(`[data-day="${today}"]`).classes()).toContain(
@@ -139,14 +149,15 @@ describe('today’s arcade training dashboard', () => {
           remainingReps: 15,
           progressPercent: 25,
           isComplete: false,
+          previousMaxReps: 10,
           createdAt: '2026-08-24T08:00:00.000Z',
           updatedAt: '2026-08-24T08:00:00.000Z',
           archivedAt: null
         }
       ]
     })
-    vi.mocked(repository.getHomeSnapshot).mockResolvedValue(activeDay)
-    vi.mocked(repository.recordReps).mockResolvedValue({
+    vi.mocked(queries.getDashboard).mockResolvedValue(activeDay)
+    vi.mocked(commands.recordReps).mockResolvedValue({
       repLogId: 'mistaken-set',
       didEarnDay: false
     })
@@ -160,6 +171,6 @@ describe('today’s arcade training dashboard', () => {
     await dashboard.get('.home-snackbar button').trigger('click')
     await flushPromises()
 
-    expect(repository.undoRepLog).toHaveBeenCalledWith('mistaken-set')
+    expect(commands.undoRepLog).toHaveBeenCalledWith('mistaken-set')
   })
 })

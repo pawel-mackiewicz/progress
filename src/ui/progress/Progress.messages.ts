@@ -23,6 +23,7 @@ export const PROGRESS_MESSAGES = {
     card: {
       completed: 'CEL ZALICZONY',
       remaining: 'Zostało {count}',
+      previousMax: 'Poprzedni maks.: {count}',
       progress: 'Postęp dla {name}: {current} z {goal}',
       addReps: 'Dodaj {count} powtórzeń do {name}',
       edit: 'Edytuj {name}'
@@ -84,6 +85,7 @@ export const PROGRESS_MESSAGES = {
     card: {
       completed: 'GOAL CLEARED',
       remaining: '{count} to go',
+      previousMax: 'Previous max: {count}',
       progress: 'Progress for {name}: {current} of {goal}',
       addReps: 'Add {count} reps to {name}',
       edit: 'Edit {name}'
