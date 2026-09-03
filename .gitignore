@@ -1,6 +1,7 @@
 .vue_pwa_template
 node_modules
 dist
+dev-dist/
 coverage
 .DS_Store
 .temp/*
