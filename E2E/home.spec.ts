@@ -27,6 +27,8 @@ test.describe('a first-time athlete starts tracking daily progress', () => {
       dailyGoal: 15
     })
 
+    await thenTheirNewExerciseAppears(page, 'Push-ups')
+    await whenTheyExpandTheExercise(page, 'Push-ups')
     await thenTheirNewExerciseStartsAtZero(page, {
       name: 'Push-ups',
       dailyGoal: 15
@@ -108,11 +110,31 @@ async function whenTheyCreateAnExercise(
   })
 }
 
+async function thenTheirNewExerciseAppears(page: Page, exerciseName: string) {
+  await test.step('Then their new exercise appears on the dashboard', async () => {
+    await expect(
+      page.getByRole('button', {
+        name: `Expand ${exerciseName}. Status: Not completed`
+      })
+    ).toBeVisible()
+  })
+}
+
+async function whenTheyExpandTheExercise(page: Page, exerciseName: string) {
+  await test.step('When they expand the exercise to see its details', async () => {
+    await page
+      .getByRole('button', {
+        name: `Expand ${exerciseName}. Status: Not completed`
+      })
+      .click()
+  })
+}
+
 async function thenTheirNewExerciseStartsAtZero(
   page: Page,
   exercise: { name: string; dailyGoal: number }
 ) {
-  await test.step('Then the new exercise appears with no reps recorded yet', async () => {
+  await test.step('Then its details show no reps recorded yet', async () => {
     await expect(
       page.getByRole('heading', { level: 3, name: exercise.name })
     ).toBeVisible()
