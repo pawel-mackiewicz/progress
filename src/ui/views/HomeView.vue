@@ -1,13 +1,5 @@
 <script setup lang="ts">
-import {
-  ArchiveRestore,
-  CheckCircle2,
-  ChevronDown,
-  Circle,
-  Flame,
-  Plus,
-  Trophy
-} from '@lucide/vue'
+import { Plus } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -15,14 +7,17 @@ import { useProgressCommands, useProgressQueries } from '@/progress/context'
 import { monthRange, toLocalDayKey } from '@/progress/date'
 import type { DashboardSnapshot, RepIncrement } from '@/progress/types'
 import CompletionCalendar from '@/ui/progress/CompletionCalendar.vue'
-import ExerciseCard from '@/ui/progress/ExerciseCard.vue'
+import CompletionCelebration from '@/ui/progress/CompletionCelebration.vue'
+import HomeArchivedExercises from '@/ui/progress/HomeArchivedExercises.vue'
+import HomeExerciseList from '@/ui/progress/HomeExerciseList.vue'
+import HomeHero from '@/ui/progress/HomeHero.vue'
 import { PROGRESS_MESSAGES } from '@/ui/progress/Progress.messages'
 import { RouterLink, useRouter } from '@/ui/router/runtime'
 
 const queries = useProgressQueries()
 const commands = useProgressCommands()
 const router = useRouter()
-const { locale, t } = useI18n({
+const { t } = useI18n({
   useScope: 'local',
   messages: PROGRESS_MESSAGES
 })
@@ -45,18 +40,6 @@ let midnightTimer: ReturnType<typeof setTimeout> | undefined
 let loadSequence = 0
 
 const today = computed(() => toLocalDayKey(now.value))
-const formattedDate = computed(() =>
-  new Intl.DateTimeFormat(locale.value, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long'
-  }).format(now.value)
-)
-const streakCopy = computed(() => {
-  const streak = snapshot.value?.currentStreak ?? 0
-
-  return streak > 0 ? t('home.streak', { count: streak }) : t('home.streakZero')
-})
 
 async function loadSnapshot() {
   const sequence = ++loadSequence
@@ -238,25 +221,11 @@ onUnmounted(() => {
 
 <template>
   <div class="home-view">
-    <section class="home-hero" aria-labelledby="home-title">
-      <div>
-        <p class="app-section-label">{{ t('home.eyebrow') }}</p>
-        <h2 id="home-title" class="home-hero__title">
-          {{
-            snapshot?.isDayComplete ? t('home.completeTitle') : t('home.title')
-          }}
-        </h2>
-        <p class="home-hero__date">{{ formattedDate }}</p>
-      </div>
-
-      <div
-        class="home-hero__streak"
-        :class="{ 'home-hero__streak--active': snapshot?.currentStreak }"
-      >
-        <Flame aria-hidden="true" :size="24" :stroke-width="2.6" />
-        <span>{{ streakCopy }}</span>
-      </div>
-    </section>
+    <HomeHero
+      :current-streak="snapshot?.currentStreak ?? 0"
+      :date="now"
+      :is-day-complete="snapshot?.isDayComplete ?? false"
+    />
 
     <p v-if="loadError" class="app-alert" role="alert">
       {{ t('home.loadError') }}
@@ -270,93 +239,13 @@ onUnmounted(() => {
     </div>
 
     <template v-else-if="snapshot">
-      <ul
-        v-if="snapshot.exercises.length"
-        class="home-exercises"
-        :aria-label="t('home.exerciseList')"
-      >
-        <li
-          v-for="exercise in snapshot.exercises"
-          :key="exercise.id"
-          class="home-exercises__item"
-          :class="{
-            'home-exercises__item--complete': exercise.isComplete,
-            'home-exercises__item--expanded': expandedExerciseId === exercise.id
-          }"
-        >
-          <button
-            class="home-exercises__toggle"
-            type="button"
-            :aria-controls="`exercise-details-${exercise.id}`"
-            :aria-expanded="expandedExerciseId === exercise.id"
-            :aria-label="
-              t(
-                expandedExerciseId === exercise.id
-                  ? 'home.collapseExercise'
-                  : 'home.expandExercise',
-                {
-                  name: exercise.name,
-                  status: t(
-                    exercise.isComplete
-                      ? 'home.exerciseComplete'
-                      : 'home.exerciseIncomplete'
-                  )
-                }
-              )
-            "
-            :data-testid="`exercise-toggle-${exercise.id}`"
-            @click="toggleExercise(exercise.id)"
-          >
-            <span
-              class="home-exercises__status-icon"
-              :class="{
-                'home-exercises__status-icon--complete': exercise.isComplete
-              }"
-              :data-testid="`exercise-status-${exercise.id}`"
-              aria-hidden="true"
-            >
-              <CheckCircle2
-                v-if="exercise.isComplete"
-                :size="23"
-                :stroke-width="2.5"
-              />
-              <Circle v-else :size="23" :stroke-width="2.2" />
-            </span>
-            <span class="home-exercises__summary">
-              <strong>{{ exercise.name }}</strong>
-            </span>
-            <ChevronDown
-              class="home-exercises__chevron"
-              :class="{
-                'home-exercises__chevron--expanded':
-                  expandedExerciseId === exercise.id
-              }"
-              aria-hidden="true"
-              :size="22"
-            />
-          </button>
-
-          <ExerciseCard
-            v-if="expandedExerciseId === exercise.id"
-            :id="`exercise-details-${exercise.id}`"
-            :exercise="exercise"
-            @add="addReps(exercise.id, exercise.name, $event)"
-            @edit="editExercise(exercise.id)"
-          />
-        </li>
-      </ul>
-
-      <section v-else class="home-empty">
-        <span class="home-empty__icon">
-          <Trophy aria-hidden="true" :size="34" />
-        </span>
-        <h3>{{ t('home.emptyTitle') }}</h3>
-        <p>{{ t('home.emptyBody') }}</p>
-        <RouterLink class="app-primary-button" to="/exercises/new">
-          <Plus aria-hidden="true" :size="20" />
-          {{ t('home.addExercise') }}
-        </RouterLink>
-      </section>
+      <HomeExerciseList
+        :exercises="snapshot.exercises"
+        :expanded-exercise-id="expandedExerciseId"
+        @add="addReps"
+        @edit="editExercise"
+        @toggle="toggleExercise"
+      />
 
       <CompletionCalendar
         :completed-days="snapshot.completedDays"
@@ -366,28 +255,10 @@ onUnmounted(() => {
         @previous="changeMonth(-1)"
       />
 
-      <details v-if="snapshot.archivedExercises.length" class="home-archived">
-        <summary>
-          <ArchiveRestore aria-hidden="true" :size="18" />
-          {{
-            t('home.archivedTitle', {
-              count: snapshot.archivedExercises.length
-            })
-          }}
-        </summary>
-        <ul>
-          <li v-for="exercise in snapshot.archivedExercises" :key="exercise.id">
-            <span>{{ exercise.name }}</span>
-            <button
-              type="button"
-              :aria-label="t('home.restoreLabel', { name: exercise.name })"
-              @click="restoreExercise(exercise.id)"
-            >
-              {{ t('home.restore') }}
-            </button>
-          </li>
-        </ul>
-      </details>
+      <HomeArchivedExercises
+        :exercises="snapshot.archivedExercises"
+        @restore="restoreExercise"
+      />
     </template>
 
     <RouterLink
@@ -408,22 +279,7 @@ onUnmounted(() => {
       </div>
     </Transition>
 
-    <Transition name="celebration">
-      <div
-        v-if="showCelebration"
-        class="celebration"
-        role="status"
-        aria-live="assertive"
-      >
-        <div class="celebration__confetti" aria-hidden="true">
-          <span v-for="index in 14" :key="index" />
-        </div>
-        <Trophy class="celebration__trophy" aria-hidden="true" :size="54" />
-        <p>{{ t('celebration.kicker') }}</p>
-        <strong>{{ t('celebration.title') }}</strong>
-        <span>{{ t('celebration.body') }}</span>
-      </div>
-    </Transition>
+    <CompletionCelebration :visible="showCelebration" />
   </div>
 </template>
 
@@ -432,248 +288,6 @@ onUnmounted(() => {
   display: grid;
   gap: 1.35rem;
   padding-bottom: 4.8rem;
-}
-
-.home-hero {
-  display: grid;
-  gap: 1.2rem;
-  padding: 0.5rem 0 0.2rem;
-}
-
-.home-hero__title {
-  max-width: 12ch;
-  margin: 0.35rem 0 0;
-  color: var(--color-on-surface);
-  font-family: var(--font-headline);
-  font-size: clamp(2.45rem, 11vw, 4.8rem);
-  line-height: 0.94;
-  letter-spacing: -0.055em;
-  text-wrap: balance;
-}
-
-.home-hero__date {
-  margin: 0.85rem 0 0;
-  color: var(--color-secondary);
-  font-size: 0.9rem;
-  text-transform: capitalize;
-}
-
-.home-hero__streak {
-  display: flex;
-  width: fit-content;
-  min-height: 3rem;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.65rem 0.9rem;
-  border: 1px solid var(--color-outline);
-  border-radius: 1rem;
-  color: var(--color-secondary);
-  background: var(--color-surface-container-lowest);
-  font-family: var(--font-mono);
-  font-size: 0.76rem;
-  font-weight: 800;
-}
-
-.home-hero__streak--active {
-  color: var(--color-accent-warm);
-  border-color: rgb(from var(--color-accent-warm) r g b / 0.48);
-  box-shadow: 0 0 1.3rem rgb(from var(--color-accent-warm) r g b / 0.13);
-}
-
-.home-exercises {
-  display: grid;
-  gap: 0.55rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.home-exercises__item {
-  display: grid;
-  gap: 0;
-}
-
-.home-exercises__toggle {
-  position: relative;
-  display: grid;
-  width: 100%;
-  min-height: 4rem;
-  overflow: hidden;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.8rem;
-  padding: 0.7rem 0.9rem;
-  border: 1px solid var(--color-outline);
-  border-radius: 1rem;
-  color: var(--color-on-surface);
-  background: var(--color-surface-container-lowest);
-  text-align: start;
-  box-shadow: 0 0.45rem 1.2rem rgb(0 0 0 / 0.14);
-  transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    transform 90ms ease;
-}
-
-.home-exercises__item--expanded .home-exercises__toggle::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 0.22rem;
-  background: var(--color-primary);
-  box-shadow: 0 0 1rem var(--color-primary);
-  content: '';
-}
-
-.home-exercises__item--complete.home-exercises__item--expanded
-  .home-exercises__toggle::before {
-  background: var(--color-success);
-  box-shadow: 0 0 1rem var(--color-success);
-}
-
-.home-exercises__toggle:hover,
-.home-exercises__toggle:focus-visible {
-  border-color: var(--color-primary);
-  background: rgb(from var(--color-primary) r g b / 0.07);
-}
-
-.home-exercises__toggle:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 3px;
-}
-
-.home-exercises__toggle:active {
-  transform: scale(0.985);
-}
-
-.home-exercises__item--complete .home-exercises__toggle {
-  border-color: rgb(from var(--color-success) r g b / 0.55);
-}
-
-.home-exercises__item--expanded .home-exercises__toggle {
-  border-end-start-radius: 0;
-  border-end-end-radius: 0;
-}
-
-.home-exercises__item--expanded :deep(.exercise-card) {
-  border-top: 0;
-  border-start-start-radius: 0;
-  border-start-end-radius: 0;
-  transform-origin: top;
-  animation: exercise-card-open 160ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.home-exercises__status-icon {
-  display: inline-flex;
-  color: var(--color-primary);
-}
-
-.home-exercises__status-icon--complete {
-  color: var(--color-success);
-}
-
-.home-exercises__summary {
-  min-width: 0;
-}
-
-.home-exercises__summary strong {
-  overflow: hidden;
-  font-family: var(--font-headline);
-  font-size: 1rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.home-exercises__chevron {
-  color: var(--color-secondary);
-  transition: transform 180ms ease;
-}
-
-.home-exercises__chevron--expanded {
-  transform: rotate(180deg);
-}
-
-.home-empty {
-  display: grid;
-  justify-items: center;
-  gap: 0.75rem;
-  padding: 2.4rem 1.35rem;
-  border: 1px dashed rgb(from var(--color-primary) r g b / 0.5);
-  border-radius: 1.5rem;
-  background: rgb(from var(--color-primary) r g b / 0.04);
-  text-align: center;
-}
-
-.home-empty__icon {
-  display: grid;
-  width: 4rem;
-  height: 4rem;
-  place-items: center;
-  border: 1px solid var(--color-primary);
-  border-radius: 1.25rem;
-  color: var(--color-primary);
-  box-shadow: 0 0 1.8rem rgb(from var(--color-primary) r g b / 0.22);
-}
-
-.home-empty h3,
-.home-empty p {
-  margin: 0;
-}
-
-.home-empty h3 {
-  margin-top: 0.5rem;
-  font-family: var(--font-headline);
-  font-size: 1.4rem;
-}
-
-.home-empty p {
-  max-width: 27rem;
-  color: var(--color-secondary);
-  line-height: 1.55;
-}
-
-.home-archived {
-  border: 1px solid var(--color-outline);
-  border-radius: 1rem;
-  color: var(--color-secondary);
-  background: var(--color-surface-container-lowest);
-}
-
-.home-archived summary {
-  display: flex;
-  min-height: 3.5rem;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.9rem 1rem;
-  cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 800;
-}
-
-.home-archived ul {
-  display: grid;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0 1rem 1rem;
-  list-style: none;
-}
-
-.home-archived li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-top: 0.65rem;
-  border-top: 1px solid var(--color-outline);
-}
-
-.home-archived button {
-  min-height: 2.75rem;
-  padding: 0.5rem 0.8rem;
-  border-radius: 0.75rem;
-  color: var(--color-primary);
-  background: rgb(from var(--color-primary) r g b / 0.1);
-  font-weight: 800;
 }
 
 .home-add-button {
@@ -739,119 +353,6 @@ onUnmounted(() => {
   font-weight: 900;
 }
 
-.celebration {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  padding: 1.5rem;
-  color: var(--color-on-surface);
-  background:
-    radial-gradient(
-      circle,
-      rgb(from var(--color-primary) r g b / 0.3),
-      transparent 32%
-    ),
-    rgb(from var(--color-surface) r g b / 0.92);
-  text-align: center;
-  backdrop-filter: blur(14px);
-}
-
-.celebration__trophy {
-  color: var(--color-success);
-  filter: drop-shadow(0 0 1.1rem var(--color-success));
-  animation: trophy-arrival 520ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.celebration > p {
-  margin: 1rem 0 0.4rem;
-  color: var(--color-primary);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 900;
-  letter-spacing: 0.16em;
-}
-
-.celebration > strong {
-  font-family: var(--font-headline);
-  font-size: clamp(2.5rem, 12vw, 5rem);
-  line-height: 0.95;
-}
-
-.celebration > span {
-  max-width: 28rem;
-  margin-top: 1rem;
-  color: var(--color-secondary);
-}
-
-.celebration__confetti {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.celebration__confetti span {
-  position: absolute;
-  top: -10%;
-  left: calc((var(--piece) + 1) * 6.5%);
-  width: 0.55rem;
-  height: 1.25rem;
-  background: var(--color-primary);
-  animation: confetti-fall 2.4s calc(var(--piece) * 45ms) ease-in both;
-}
-
-.celebration__confetti span:nth-child(3n + 1) {
-  background: var(--color-accent);
-}
-.celebration__confetti span:nth-child(3n + 2) {
-  background: var(--color-success);
-}
-.celebration__confetti span:nth-child(1) {
-  --piece: 1;
-}
-.celebration__confetti span:nth-child(2) {
-  --piece: 2;
-}
-.celebration__confetti span:nth-child(3) {
-  --piece: 3;
-}
-.celebration__confetti span:nth-child(4) {
-  --piece: 4;
-}
-.celebration__confetti span:nth-child(5) {
-  --piece: 5;
-}
-.celebration__confetti span:nth-child(6) {
-  --piece: 6;
-}
-.celebration__confetti span:nth-child(7) {
-  --piece: 7;
-}
-.celebration__confetti span:nth-child(8) {
-  --piece: 8;
-}
-.celebration__confetti span:nth-child(9) {
-  --piece: 9;
-}
-.celebration__confetti span:nth-child(10) {
-  --piece: 10;
-}
-.celebration__confetti span:nth-child(11) {
-  --piece: 11;
-}
-.celebration__confetti span:nth-child(12) {
-  --piece: 12;
-}
-.celebration__confetti span:nth-child(13) {
-  --piece: 13;
-}
-.celebration__confetti span:nth-child(14) {
-  --piece: 14;
-}
-
 .home-loading {
   display: flex;
   min-height: 12rem;
@@ -877,9 +378,7 @@ onUnmounted(() => {
 }
 
 .snackbar-enter-active,
-.snackbar-leave-active,
-.celebration-enter-active,
-.celebration-leave-active {
+.snackbar-leave-active {
   transition:
     opacity 180ms ease,
     transform 220ms ease;
@@ -891,29 +390,6 @@ onUnmounted(() => {
   transform: translateY(1rem);
 }
 
-.celebration-enter-from,
-.celebration-leave-to {
-  opacity: 0;
-  transform: scale(1.04);
-}
-
-@keyframes trophy-arrival {
-  from {
-    opacity: 0;
-    transform: scale(0.2) rotate(-18deg);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) rotate(0);
-  }
-}
-
-@keyframes confetti-fall {
-  to {
-    transform: translateY(115vh) rotate(520deg);
-  }
-}
-
 @keyframes loading-pulse {
   to {
     opacity: 0.25;
@@ -921,32 +397,9 @@ onUnmounted(() => {
   }
 }
 
-@keyframes exercise-card-open {
-  from {
-    opacity: 0;
-    transform: translateY(-0.35rem) scaleY(0.985);
-  }
-}
-
 @media (min-width: 48rem) {
-  .home-hero {
-    grid-template-columns: 1fr auto;
-    align-items: end;
-  }
-
   .home-add-button {
     right: calc((100vw - 56rem) / 2 + 2rem);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .home-exercises__toggle,
-  .home-exercises__chevron {
-    transition: none;
-  }
-
-  .home-exercises__item--expanded :deep(.exercise-card) {
-    animation: none;
   }
 }
 </style>
