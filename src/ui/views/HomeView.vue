@@ -222,6 +222,7 @@ onUnmounted(() => {
 <template>
   <div class="home-view">
     <HomeHero
+      :available-shields="snapshot?.availableShields ?? 0"
       :current-streak="snapshot?.currentStreak ?? 0"
       :date="now"
       :is-day-complete="snapshot?.isDayComplete ?? false"
@@ -250,6 +251,7 @@ onUnmounted(() => {
       <CompletionCalendar
         :completed-days="snapshot.completedDays"
         :month="selectedMonth"
+        :protected-days="snapshot.protectedDays"
         :today="today"
         @next="changeMonth(1)"
         @previous="changeMonth(-1)"

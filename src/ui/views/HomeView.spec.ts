@@ -3,7 +3,7 @@ import { defineComponent } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { provideProgressServices } from '@/progress/context'
-import { toLocalDayKey } from '@/progress/date'
+import { shiftLocalDay, toLocalDayKey } from '@/progress/date'
 import type {
   DashboardExercise,
   DashboardSnapshot,
@@ -35,8 +35,10 @@ describe('today’s arcade training dashboard', () => {
       exercises: [],
       archivedExercises: [],
       completedDays: [],
+      protectedDays: [],
       isDayComplete: false,
       currentStreak: 0,
+      availableShields: 0,
       ...overrides
     }
   }
@@ -102,6 +104,26 @@ describe('today’s arcade training dashboard', () => {
       'Add exercise'
     )
     expect(dashboard.text()).toContain('Victory calendar')
+  })
+
+  it('shows the shield balance and the day it protected', async () => {
+    const protectedDay = shiftLocalDay(today, -1)
+    vi.mocked(queries.getDashboard).mockResolvedValue(
+      snapshot({
+        currentStreak: 9,
+        availableShields: 1,
+        protectedDays: [protectedDay]
+      })
+    )
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    expect(dashboard.get('[data-testid="shield-balance"]').text()).toContain(
+      '1 shield'
+    )
+    expect(dashboard.get(`[data-day="${protectedDay}"]`).classes()).toContain(
+      'completion-calendar__day--protected'
+    )
   })
 
   it('keeps every quest compact until the athlete chooses one to train', async () => {

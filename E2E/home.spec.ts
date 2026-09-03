@@ -41,6 +41,23 @@ test.describe('a first-time athlete starts tracking daily progress', () => {
   })
 })
 
+test.describe('an athlete keeps a hard-earned streak alive', () => {
+  test('earns a shield and automatically spends it on a missed day', async ({
+    page
+  }) => {
+    await givenTheyOpenTheDashboard(page)
+    await givenTheyCompletedThePreviousFourDays(page)
+    await whenTheyReturnToTheDashboard(page)
+
+    await thenTheyHaveOneShield(page)
+
+    const protectedHistory = await givenTheyLaterMissedOneDay(page)
+    await whenTheyReturnToTheDashboard(page)
+
+    await thenTheShieldProtectedTheirStreak(page, protectedHistory)
+  })
+})
+
 async function givenTheyOpenTheDashboard(page: Page) {
   await test.step('Given a first-time athlete opens the dashboard', async () => {
     await page.goto('/')
@@ -62,7 +79,105 @@ async function thenTheySeeAnInvitationToCreateTheirFirstExercise(page: Page) {
     await expect(
       page.getByRole('heading', { level: 2, name: 'Victory calendar' })
     ).toBeVisible()
+    await expect(page.getByText('0 shields', { exact: true })).toBeVisible()
   })
+}
+
+async function givenTheyCompletedThePreviousFourDays(page: Page) {
+  await test.step('Given they completed each of the previous four days', async () => {
+    await replaceCompletionHistory(page, [-4, -3, -2, -1])
+  })
+}
+
+async function thenTheyHaveOneShield(page: Page) {
+  await test.step('Then their four-day streak has earned one shield', async () => {
+    await expect(page.getByText('4 day streak', { exact: true })).toBeVisible()
+    await expect(page.getByText('1 shield', { exact: true })).toBeVisible()
+  })
+}
+
+async function givenTheyLaterMissedOneDay(page: Page) {
+  return test.step('When one day is missing from their protected streak', () =>
+    replaceCompletionHistory(page, [-6, -5, -4, -3, -1]))
+}
+
+async function whenTheyReturnToTheDashboard(page: Page) {
+  await test.step('When they return to the dashboard', async () => {
+    await page.reload()
+  })
+}
+
+async function thenTheShieldProtectedTheirStreak(
+  page: Page,
+  history: { protectedDay: string; today: string }
+) {
+  await test.step('Then the shield is spent and the protected day is visible', async () => {
+    await expect(page.getByText('5 day streak', { exact: true })).toBeVisible()
+    await expect(page.getByText('0 shields', { exact: true })).toBeVisible()
+
+    if (history.protectedDay.slice(0, 7) !== history.today.slice(0, 7)) {
+      await page.getByRole('button', { name: 'Previous month' }).click()
+    }
+
+    const protectedDay = page.locator(`[data-day="${history.protectedDay}"]`)
+    await expect(protectedDay).toHaveClass(
+      /completion-calendar__day--protected/
+    )
+    await expect(protectedDay).toHaveAccessibleName(
+      /streak protected by a shield/
+    )
+  })
+}
+
+async function replaceCompletionHistory(page: Page, dayOffsets: number[]) {
+  return page.evaluate(async (offsets) => {
+    function dayKey(date: Date) {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+
+      return `${year}-${month}-${day}`
+    }
+
+    function shiftedDay(offset: number) {
+      const date = new Date()
+      date.setHours(12, 0, 0, 0)
+      date.setDate(date.getDate() + offset)
+
+      return dayKey(date)
+    }
+
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('progress')
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction('dailyCompletions', 'readwrite')
+      const completions = transaction.objectStore('dailyCompletions')
+      completions.clear()
+
+      for (const offset of offsets) {
+        completions.put({
+          day: shiftedDay(offset),
+          earnedAt: new Date().toISOString(),
+          triggerRepLogId: null
+        })
+      }
+
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+      transaction.onabort = () => reject(transaction.error)
+    })
+
+    database.close()
+
+    return {
+      protectedDay: shiftedDay(-2),
+      today: shiftedDay(0)
+    }
+  }, dayOffsets)
 }
 
 async function whenTheyChooseToAddAnExercise(page: Page) {
@@ -196,6 +311,7 @@ async function thenTheySeeThatTodaysGoalIsComplete(
     )
     await expect(page.getByText('GOAL CLEARED', { exact: true })).toBeVisible()
     await expect(page.getByText('1 day streak', { exact: true })).toBeVisible()
+    await expect(page.getByText('0 shields', { exact: true })).toBeVisible()
     await expect(
       page.getByRole('status').filter({ hasText: 'Quest complete!' })
     ).toBeVisible()

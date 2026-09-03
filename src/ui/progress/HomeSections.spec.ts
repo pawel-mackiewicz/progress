@@ -2,6 +2,8 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { DashboardExercise, Exercise } from '@/progress/types'
+import type { LocalDayKey } from '@/progress/date'
+import CompletionCalendar from '@/ui/progress/CompletionCalendar.vue'
 import CompletionCelebration from '@/ui/progress/CompletionCelebration.vue'
 import HomeArchivedExercises from '@/ui/progress/HomeArchivedExercises.vue'
 import HomeExerciseList from '@/ui/progress/HomeExerciseList.vue'
@@ -53,7 +55,8 @@ describe('the home dashboard sections', () => {
       props: {
         date: new Date(2026, 8, 3),
         isDayComplete: false,
-        currentStreak: 0
+        currentStreak: 0,
+        availableShields: 0
       },
       global: { plugins: [createAppI18n('en')] }
     })
@@ -61,16 +64,53 @@ describe('the home dashboard sections', () => {
     expect(hero.text()).toContain('Ready, player one?')
     expect(hero.text()).toContain('Thursday, September 3')
     expect(hero.text()).toContain('Start your streak today')
+    expect(hero.text()).toContain('0 shields')
     expect(hero.get('.home-hero__streak').classes()).not.toContain(
       'home-hero__streak--active'
     )
+    expect(hero.get('.home-hero__shield').classes()).not.toContain(
+      'home-hero__shield--active'
+    )
 
-    await hero.setProps({ isDayComplete: true, currentStreak: 3 })
+    await hero.setProps({
+      isDayComplete: true,
+      currentStreak: 3,
+      availableShields: 2
+    })
 
     expect(hero.text()).toContain('Day cleared!')
     expect(hero.text()).toContain('3 day streak')
+    expect(hero.text()).toContain('2 shields')
     expect(hero.get('.home-hero__streak').classes()).toContain(
       'home-hero__streak--active'
+    )
+    expect(hero.get('.home-hero__shield').classes()).toContain(
+      'home-hero__shield--active'
+    )
+  })
+
+  it('marks the missed day where a shield kept the streak alive', () => {
+    const protectedDay = '2026-09-02' as LocalDayKey
+    const calendar = mount(CompletionCalendar, {
+      props: {
+        month: new Date(2026, 8, 1),
+        completedDays: ['2026-09-01' as LocalDayKey],
+        protectedDays: [protectedDay],
+        today: '2026-09-03' as LocalDayKey
+      },
+      global: { plugins: [createAppI18n('en')] }
+    })
+
+    const protectedCell = calendar.get(`[data-day="${protectedDay}"]`)
+
+    expect(protectedCell.classes()).toContain(
+      'completion-calendar__day--protected'
+    )
+    expect(protectedCell.attributes('aria-label')).toContain(
+      'streak protected by a shield'
+    )
+    expect(protectedCell.find('.completion-calendar__shield').exists()).toBe(
+      true
     )
   })
 

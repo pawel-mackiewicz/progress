@@ -7,6 +7,9 @@ export const PROGRESS_MESSAGES = {
       completeBody: 'Wszystkie cele rozbite. Jutro robimy to ponownie.',
       streak: 'seria {count} dni',
       streakZero: 'Zacznij serię dzisiaj',
+      shieldZero: '0 tarcz',
+      shieldOne: '1 tarcza',
+      shieldTwo: '2 tarcze',
       emptyTitle: 'Brak aktywnych misji',
       emptyBody: 'Dodaj pierwsze ćwiczenie i rozpocznij dzisiejszą serię.',
       addExercise: 'Dodaj ćwiczenie',
@@ -39,6 +42,7 @@ export const PROGRESS_MESSAGES = {
       previous: 'Poprzedni miesiąc',
       next: 'Następny miesiąc',
       completed: 'wszystkie cele wykonane',
+      protected: 'seria ochroniona tarczą',
       today: 'dzisiaj'
     },
     celebration: {
@@ -74,6 +78,9 @@ export const PROGRESS_MESSAGES = {
       completeBody: 'Every goal crushed. Come back tomorrow and run it again.',
       streak: '{count} day streak',
       streakZero: 'Start your streak today',
+      shieldZero: '0 shields',
+      shieldOne: '1 shield',
+      shieldTwo: '2 shields',
       emptyTitle: 'No active quests',
       emptyBody: 'Add your first exercise and start powering up today.',
       addExercise: 'Add exercise',
@@ -106,6 +113,7 @@ export const PROGRESS_MESSAGES = {
       previous: 'Previous month',
       next: 'Next month',
       completed: 'all goals completed',
+      protected: 'streak protected by a shield',
       today: 'today'
     },
     celebration: {

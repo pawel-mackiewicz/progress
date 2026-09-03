@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Flame } from '@lucide/vue'
+import { Flame, Shield } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -9,6 +9,7 @@ const props = defineProps<{
   date: Date
   isDayComplete: boolean
   currentStreak: number
+  availableShields: number
 }>()
 
 const { locale, t } = useI18n({
@@ -28,6 +29,17 @@ const streakCopy = computed(() =>
     ? t('home.streak', { count: props.currentStreak })
     : t('home.streakZero')
 )
+const shieldCopy = computed(() => {
+  if (props.availableShields === 1) {
+    return t('home.shieldOne')
+  }
+
+  if (props.availableShields === 2) {
+    return t('home.shieldTwo')
+  }
+
+  return t('home.shieldZero')
+})
 </script>
 
 <template>
@@ -40,12 +52,22 @@ const streakCopy = computed(() =>
       <p class="home-hero__date">{{ formattedDate }}</p>
     </div>
 
-    <div
-      class="home-hero__streak"
-      :class="{ 'home-hero__streak--active': currentStreak > 0 }"
-    >
-      <Flame aria-hidden="true" :size="24" :stroke-width="2.6" />
-      <span>{{ streakCopy }}</span>
+    <div class="home-hero__stats">
+      <div
+        class="home-hero__streak"
+        :class="{ 'home-hero__streak--active': currentStreak > 0 }"
+      >
+        <Flame aria-hidden="true" :size="24" :stroke-width="2.6" />
+        <span>{{ streakCopy }}</span>
+      </div>
+      <div
+        class="home-hero__shield"
+        :class="{ 'home-hero__shield--active': availableShields > 0 }"
+        data-testid="shield-balance"
+      >
+        <Shield aria-hidden="true" :size="22" :stroke-width="2.6" />
+        <span>{{ shieldCopy }}</span>
+      </div>
     </div>
   </section>
 </template>
@@ -75,7 +97,14 @@ const streakCopy = computed(() =>
   text-transform: capitalize;
 }
 
-.home-hero__streak {
+.home-hero__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.home-hero__streak,
+.home-hero__shield {
   display: flex;
   width: fit-content;
   min-height: 3rem;
@@ -97,10 +126,20 @@ const streakCopy = computed(() =>
   box-shadow: 0 0 1.3rem rgb(from var(--color-accent-warm) r g b / 0.13);
 }
 
+.home-hero__shield--active {
+  color: var(--color-accent);
+  border-color: rgb(from var(--color-accent) r g b / 0.48);
+  box-shadow: 0 0 1.3rem rgb(from var(--color-accent) r g b / 0.13);
+}
+
 @media (min-width: 48rem) {
   .home-hero {
     grid-template-columns: 1fr auto;
     align-items: end;
+  }
+
+  .home-hero__stats {
+    justify-content: flex-end;
   }
 }
 </style>

@@ -43,8 +43,10 @@ export type DashboardSnapshot = {
   exercises: DashboardExercise[]
   archivedExercises: Exercise[]
   completedDays: LocalDayKey[]
+  protectedDays: LocalDayKey[]
   isDayComplete: boolean
   currentStreak: number
+  availableShields: number
 }
 
 export type RecordRepsResult = {

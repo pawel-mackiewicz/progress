@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BadgeCheck, ChevronLeft, ChevronRight } from '@lucide/vue'
+import { BadgeCheck, ChevronLeft, ChevronRight, Shield } from '@lucide/vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -13,6 +13,7 @@ import { PROGRESS_MESSAGES } from '@/ui/progress/Progress.messages'
 const props = defineProps<{
   month: Date
   completedDays: LocalDayKey[]
+  protectedDays: LocalDayKey[]
   today: LocalDayKey
 }>()
 
@@ -27,6 +28,7 @@ const { locale, t } = useI18n({
 })
 
 const completedDaySet = computed(() => new Set(props.completedDays))
+const protectedDaySet = computed(() => new Set(props.protectedDays))
 const monthLabel = computed(() =>
   new Intl.DateTimeFormat(locale.value, {
     month: 'long',
@@ -55,6 +57,7 @@ const cells = computed(() => {
     date: Date | null
     day: LocalDayKey | null
     completed: boolean
+    protected: boolean
     today: boolean
     future: boolean
   }> = Array.from({ length: leadingBlanks }, (_, index) => ({
@@ -62,6 +65,7 @@ const cells = computed(() => {
     date: null,
     day: null,
     completed: false,
+    protected: false,
     today: false,
     future: false
   }))
@@ -75,6 +79,7 @@ const cells = computed(() => {
       date,
       day,
       completed: completedDaySet.value.has(day),
+      protected: protectedDaySet.value.has(day),
       today: day === props.today,
       future: day > props.today
     })
@@ -86,6 +91,7 @@ const cells = computed(() => {
       date: null,
       day: null,
       completed: false,
+      protected: false,
       today: false,
       future: false
     })
@@ -120,6 +126,10 @@ function cellLabel(cell: (typeof cells.value)[number]) {
 
   if (cell.completed) {
     parts.push(t('calendar.completed'))
+  }
+
+  if (cell.protected) {
+    parts.push(t('calendar.protected'))
   }
 
   return parts.join(', ')
@@ -173,6 +183,7 @@ function cellLabel(cell: (typeof cells.value)[number]) {
         :class="{
           'completion-calendar__day--blank': !cell.date,
           'completion-calendar__day--complete': cell.completed,
+          'completion-calendar__day--protected': cell.protected,
           'completion-calendar__day--today': cell.today,
           'completion-calendar__day--future': cell.future
         }"
@@ -185,6 +196,13 @@ function cellLabel(cell: (typeof cells.value)[number]) {
           class="completion-calendar__badge"
           aria-hidden="true"
           :size="21"
+          :stroke-width="2.8"
+        />
+        <Shield
+          v-else-if="cell.protected"
+          class="completion-calendar__shield"
+          aria-hidden="true"
+          :size="20"
           :stroke-width="2.8"
         />
       </div>
@@ -312,7 +330,14 @@ function cellLabel(cell: (typeof cells.value)[number]) {
   box-shadow: inset 0 0 1rem rgb(from var(--color-success) r g b / 0.1);
 }
 
-.completion-calendar__day--complete > span {
+.completion-calendar__day--protected {
+  color: var(--color-accent);
+  background: rgb(from var(--color-accent) r g b / 0.1);
+  box-shadow: inset 0 0 1rem rgb(from var(--color-accent) r g b / 0.1);
+}
+
+.completion-calendar__day--complete > span,
+.completion-calendar__day--protected > span {
   position: absolute;
   top: 0.18rem;
   left: 0.28rem;
@@ -321,5 +346,9 @@ function cellLabel(cell: (typeof cells.value)[number]) {
 
 .completion-calendar__badge {
   filter: drop-shadow(0 0 0.4rem rgb(from var(--color-success) r g b / 0.7));
+}
+
+.completion-calendar__shield {
+  filter: drop-shadow(0 0 0.4rem rgb(from var(--color-accent) r g b / 0.7));
 }
 </style>
