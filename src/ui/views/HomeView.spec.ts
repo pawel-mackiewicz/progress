@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { provideProgressServices } from '@/progress/context'
 import { toLocalDayKey } from '@/progress/date'
 import type {
+  DashboardExercise,
   DashboardSnapshot,
   ProgressCommands,
   ProgressQueries
@@ -36,6 +37,26 @@ describe('today’s arcade training dashboard', () => {
       completedDays: [],
       isDayComplete: false,
       currentStreak: 0,
+      ...overrides
+    }
+  }
+
+  function exercise(
+    overrides: Partial<DashboardExercise> = {}
+  ): DashboardExercise {
+    return {
+      id: 'push-ups',
+      name: 'Push-ups',
+      dailyGoal: 10,
+      completedReps: 5,
+      remainingReps: 5,
+      progressPercent: 50,
+      isComplete: false,
+      yesterdayReps: 5,
+      previousMaxReps: 15,
+      createdAt: '2026-08-24T08:00:00.000Z',
+      updatedAt: '2026-08-24T08:00:00.000Z',
+      archivedAt: null,
       ...overrides
     }
   }
@@ -83,6 +104,68 @@ describe('today’s arcade training dashboard', () => {
     expect(dashboard.text()).toContain('Victory calendar')
   })
 
+  it('keeps every quest compact until the athlete chooses one to train', async () => {
+    vi.mocked(queries.getDashboard).mockResolvedValue(
+      snapshot({
+        exercises: [
+          exercise(),
+          exercise({
+            id: 'squats',
+            name: 'Squats',
+            completedReps: 10,
+            remainingReps: 0,
+            progressPercent: 100,
+            isComplete: true
+          })
+        ]
+      })
+    )
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    const pushUps = dashboard.get('[data-testid="exercise-toggle-push-ups"]')
+    const squats = dashboard.get('[data-testid="exercise-toggle-squats"]')
+
+    expect(dashboard.text()).not.toContain('Not completed')
+    expect(dashboard.text()).not.toContain('Completed')
+    expect(
+      dashboard
+        .get('[data-testid="exercise-status-push-ups"]')
+        .classes('home-exercises__status-icon--complete')
+    ).toBe(false)
+    expect(
+      dashboard
+        .get('[data-testid="exercise-status-squats"]')
+        .classes('home-exercises__status-icon--complete')
+    ).toBe(true)
+    expect(pushUps.attributes('aria-label')).toContain('Not completed')
+    expect(squats.attributes('aria-label')).toContain('Completed')
+    expect(pushUps.attributes('aria-expanded')).toBe('false')
+    expect(squats.attributes('aria-expanded')).toBe('false')
+    expect(dashboard.findAll('.exercise-card')).toHaveLength(0)
+
+    await pushUps.trigger('click')
+
+    expect(pushUps.attributes('aria-expanded')).toBe('true')
+    expect(dashboard.get('.exercise-card').attributes('id')).toBe(
+      'exercise-details-push-ups'
+    )
+
+    await squats.trigger('click')
+
+    expect(pushUps.attributes('aria-expanded')).toBe('false')
+    expect(squats.attributes('aria-expanded')).toBe('true')
+    expect(dashboard.findAll('.exercise-card')).toHaveLength(1)
+    expect(dashboard.get('.exercise-card').attributes('id')).toBe(
+      'exercise-details-squats'
+    )
+
+    await squats.trigger('click')
+
+    expect(squats.attributes('aria-expanded')).toBe('false')
+    expect(dashboard.findAll('.exercise-card')).toHaveLength(0)
+  })
+
   it('turns the final quick-add tap into a visible perfect-day reward', async () => {
     const activeDay = snapshot({
       exercises: [
@@ -127,6 +210,9 @@ describe('today’s arcade training dashboard', () => {
     await flushPromises()
 
     await dashboard
+      .get('[data-testid="exercise-toggle-push-ups"]')
+      .trigger('click')
+    await dashboard
       .get('button[aria-label="Add 5 reps to Push-ups"]')
       .trigger('click')
     await flushPromises()
@@ -134,6 +220,9 @@ describe('today’s arcade training dashboard', () => {
     expect(commands.recordReps).toHaveBeenCalledWith('push-ups', 5, today)
     expect(dashboard.text()).toContain('Quest complete!')
     expect(dashboard.text()).toContain('1 day streak')
+    expect(
+      dashboard.find('[data-testid="exercise-card-push-ups"]').exists()
+    ).toBe(true)
     expect(dashboard.get(`[data-day="${today}"]`).classes()).toContain(
       'completion-calendar__day--complete'
     )
@@ -166,6 +255,9 @@ describe('today’s arcade training dashboard', () => {
     const dashboard = openDashboard()
     await flushPromises()
 
+    await dashboard
+      .get('[data-testid="exercise-toggle-pull-ups"]')
+      .trigger('click')
     await dashboard
       .get('button[aria-label="Add 10 reps to Pull-ups"]')
       .trigger('click')

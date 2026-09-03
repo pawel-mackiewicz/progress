@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { ArchiveRestore, Flame, Plus, Trophy } from '@lucide/vue'
+import {
+  ArchiveRestore,
+  CheckCircle2,
+  ChevronDown,
+  Circle,
+  Flame,
+  Plus,
+  Trophy
+} from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -30,6 +38,7 @@ const actionError = ref(false)
 const lastRepLogId = ref<string | null>(null)
 const undoCopy = ref('')
 const showCelebration = ref(false)
+const expandedExerciseId = ref<string | null>(null)
 let snackbarTimer: ReturnType<typeof setTimeout> | undefined
 let celebrationTimer: ReturnType<typeof setTimeout> | undefined
 let midnightTimer: ReturnType<typeof setTimeout> | undefined
@@ -63,6 +72,15 @@ async function loadSnapshot() {
     if (sequence === loadSequence) {
       snapshot.value = nextSnapshot
       loadError.value = false
+
+      if (
+        expandedExerciseId.value &&
+        !nextSnapshot.exercises.some(
+          (exercise) => exercise.id === expandedExerciseId.value
+        )
+      ) {
+        expandedExerciseId.value = null
+      }
     }
   } catch {
     if (sequence === loadSequence) {
@@ -133,6 +151,11 @@ async function restoreExercise(exerciseId: string) {
 
 function editExercise(exerciseId: string) {
   router.push(`/exercises/${encodeURIComponent(exerciseId)}/edit`)
+}
+
+function toggleExercise(exerciseId: string) {
+  expandedExerciseId.value =
+    expandedExerciseId.value === exerciseId ? null : exerciseId
 }
 
 function changeMonth(amount: number) {
@@ -247,19 +270,81 @@ onUnmounted(() => {
     </div>
 
     <template v-else-if="snapshot">
-      <section
+      <ul
         v-if="snapshot.exercises.length"
         class="home-exercises"
         :aria-label="t('home.exerciseList')"
       >
-        <ExerciseCard
+        <li
           v-for="exercise in snapshot.exercises"
           :key="exercise.id"
-          :exercise="exercise"
-          @add="addReps(exercise.id, exercise.name, $event)"
-          @edit="editExercise(exercise.id)"
-        />
-      </section>
+          class="home-exercises__item"
+          :class="{
+            'home-exercises__item--complete': exercise.isComplete,
+            'home-exercises__item--expanded': expandedExerciseId === exercise.id
+          }"
+        >
+          <button
+            class="home-exercises__toggle"
+            type="button"
+            :aria-controls="`exercise-details-${exercise.id}`"
+            :aria-expanded="expandedExerciseId === exercise.id"
+            :aria-label="
+              t(
+                expandedExerciseId === exercise.id
+                  ? 'home.collapseExercise'
+                  : 'home.expandExercise',
+                {
+                  name: exercise.name,
+                  status: t(
+                    exercise.isComplete
+                      ? 'home.exerciseComplete'
+                      : 'home.exerciseIncomplete'
+                  )
+                }
+              )
+            "
+            :data-testid="`exercise-toggle-${exercise.id}`"
+            @click="toggleExercise(exercise.id)"
+          >
+            <span
+              class="home-exercises__status-icon"
+              :class="{
+                'home-exercises__status-icon--complete': exercise.isComplete
+              }"
+              :data-testid="`exercise-status-${exercise.id}`"
+              aria-hidden="true"
+            >
+              <CheckCircle2
+                v-if="exercise.isComplete"
+                :size="23"
+                :stroke-width="2.5"
+              />
+              <Circle v-else :size="23" :stroke-width="2.2" />
+            </span>
+            <span class="home-exercises__summary">
+              <strong>{{ exercise.name }}</strong>
+            </span>
+            <ChevronDown
+              class="home-exercises__chevron"
+              :class="{
+                'home-exercises__chevron--expanded':
+                  expandedExerciseId === exercise.id
+              }"
+              aria-hidden="true"
+              :size="22"
+            />
+          </button>
+
+          <ExerciseCard
+            v-if="expandedExerciseId === exercise.id"
+            :id="`exercise-details-${exercise.id}`"
+            :exercise="exercise"
+            @add="addReps(exercise.id, exercise.name, $event)"
+            @edit="editExercise(exercise.id)"
+          />
+        </li>
+      </ul>
 
       <section v-else class="home-empty">
         <span class="home-empty__icon">
@@ -397,7 +482,114 @@ onUnmounted(() => {
 
 .home-exercises {
   display: grid;
-  gap: 0.9rem;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-exercises__item {
+  display: grid;
+  gap: 0;
+}
+
+.home-exercises__toggle {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 4rem;
+  overflow: hidden;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--color-outline);
+  border-radius: 1rem;
+  color: var(--color-on-surface);
+  background: var(--color-surface-container-lowest);
+  text-align: start;
+  box-shadow: 0 0.45rem 1.2rem rgb(0 0 0 / 0.14);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 90ms ease;
+}
+
+.home-exercises__item--expanded .home-exercises__toggle::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0.22rem;
+  background: var(--color-primary);
+  box-shadow: 0 0 1rem var(--color-primary);
+  content: '';
+}
+
+.home-exercises__item--complete.home-exercises__item--expanded
+  .home-exercises__toggle::before {
+  background: var(--color-success);
+  box-shadow: 0 0 1rem var(--color-success);
+}
+
+.home-exercises__toggle:hover,
+.home-exercises__toggle:focus-visible {
+  border-color: var(--color-primary);
+  background: rgb(from var(--color-primary) r g b / 0.07);
+}
+
+.home-exercises__toggle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+.home-exercises__toggle:active {
+  transform: scale(0.985);
+}
+
+.home-exercises__item--complete .home-exercises__toggle {
+  border-color: rgb(from var(--color-success) r g b / 0.55);
+}
+
+.home-exercises__item--expanded .home-exercises__toggle {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.home-exercises__item--expanded :deep(.exercise-card) {
+  border-top: 0;
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+  transform-origin: top;
+  animation: exercise-card-open 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.home-exercises__status-icon {
+  display: inline-flex;
+  color: var(--color-primary);
+}
+
+.home-exercises__status-icon--complete {
+  color: var(--color-success);
+}
+
+.home-exercises__summary {
+  min-width: 0;
+}
+
+.home-exercises__summary strong {
+  overflow: hidden;
+  font-family: var(--font-headline);
+  font-size: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-exercises__chevron {
+  color: var(--color-secondary);
+  transition: transform 180ms ease;
+}
+
+.home-exercises__chevron--expanded {
+  transform: rotate(180deg);
 }
 
 .home-empty {
@@ -729,18 +921,32 @@ onUnmounted(() => {
   }
 }
 
+@keyframes exercise-card-open {
+  from {
+    opacity: 0;
+    transform: translateY(-0.35rem) scaleY(0.985);
+  }
+}
+
 @media (min-width: 48rem) {
   .home-hero {
     grid-template-columns: 1fr auto;
     align-items: end;
   }
 
-  .home-exercises {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .home-add-button {
     right: calc((100vw - 56rem) / 2 + 2rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-exercises__toggle,
+  .home-exercises__chevron {
+    transition: none;
+  }
+
+  .home-exercises__item--expanded :deep(.exercise-card) {
+    animation: none;
   }
 }
 </style>

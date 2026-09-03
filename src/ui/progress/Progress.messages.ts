@@ -11,6 +11,10 @@ export const PROGRESS_MESSAGES = {
       emptyBody: 'Dodaj pierwsze ćwiczenie i rozpocznij dzisiejszą serię.',
       addExercise: 'Dodaj ćwiczenie',
       exerciseList: 'Dzisiejsze ćwiczenia',
+      exerciseComplete: 'Wykonane',
+      exerciseIncomplete: 'Do wykonania',
+      expandExercise: 'Rozwiń {name}. Status: {status}',
+      collapseExercise: 'Zwiń {name}. Status: {status}',
       loadError:
         'Nie udało się odczytać danych. Odśwież aplikację i spróbuj ponownie.',
       actionError: 'Nie udało się zapisać zmiany. Spróbuj ponownie.',
@@ -74,6 +78,10 @@ export const PROGRESS_MESSAGES = {
       emptyBody: 'Add your first exercise and start powering up today.',
       addExercise: 'Add exercise',
       exerciseList: "Today's exercises",
+      exerciseComplete: 'Completed',
+      exerciseIncomplete: 'Not completed',
+      expandExercise: 'Expand {name}. Status: {status}',
+      collapseExercise: 'Collapse {name}. Status: {status}',
       loadError:
         'Your data could not be loaded. Refresh the app and try again.',
       actionError: 'That change could not be saved. Try again.',
