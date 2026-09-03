@@ -83,6 +83,22 @@ describe('a training day saved on the athlete’s device', () => {
     expect(completedDay.completedDays).toContain(today)
   })
 
+  it('moves cleared quests below every quest that still needs work', async () => {
+    const pushUps = await givenAnExercise('Push-ups', 10)
+    await givenAnExercise('Squats', 10)
+    const pullUps = await givenAnExercise('Pull-ups', 10)
+
+    await whenTheAthleteAdds(pushUps.id, 10)
+    await whenTheAthleteAdds(pullUps.id, 10)
+    const trainingDay = await readDashboard()
+
+    expect(trainingDay.exercises.map((exercise) => exercise.name)).toEqual([
+      'Squats',
+      'Push-ups',
+      'Pull-ups'
+    ])
+  })
+
   it('takes back an accidental reward when its triggering set is undone', async () => {
     const pushUps = await givenAnExercise('Push-ups', 5)
     const reward = await whenTheAthleteAdds(pushUps.id, 5)

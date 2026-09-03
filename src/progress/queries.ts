@@ -14,6 +14,12 @@ function sortExercises(exercises: Exercise[]) {
   )
 }
 
+function moveCompletedExercisesToBottom(exercises: DashboardExercise[]) {
+  return [...exercises].sort(
+    (first, second) => Number(first.isComplete) - Number(second.isComplete)
+  )
+}
+
 function calculateStreak(completedDays: Set<LocalDayKey>, today: LocalDayKey) {
   let cursor = completedDays.has(today) ? today : shiftLocalDay(today, -1)
   let streak = 0
@@ -102,22 +108,24 @@ export class DexieProgressQueries implements ProgressQueries {
     const previousMaximums = findPreviousMaxReps(
       repLogs.filter((repLog) => repLog.day < day)
     )
-    const exercises = activeExercises.map<DashboardExercise>((exercise) => {
-      const completedReps = todayTotals.get(exercise.id) ?? 0
+    const exercises = moveCompletedExercisesToBottom(
+      activeExercises.map<DashboardExercise>((exercise) => {
+        const completedReps = todayTotals.get(exercise.id) ?? 0
 
-      return {
-        ...exercise,
-        completedReps,
-        remainingReps: Math.max(exercise.dailyGoal - completedReps, 0),
-        progressPercent: Math.min(
-          Math.round((completedReps / exercise.dailyGoal) * 100),
-          100
-        ),
-        isComplete: completedReps >= exercise.dailyGoal,
-        yesterdayReps: yesterdayTotals.get(exercise.id) ?? 0,
-        previousMaxReps: previousMaximums.get(exercise.id) ?? 0
-      }
-    })
+        return {
+          ...exercise,
+          completedReps,
+          remainingReps: Math.max(exercise.dailyGoal - completedReps, 0),
+          progressPercent: Math.min(
+            Math.round((completedReps / exercise.dailyGoal) * 100),
+            100
+          ),
+          isComplete: completedReps >= exercise.dailyGoal,
+          yesterdayReps: yesterdayTotals.get(exercise.id) ?? 0,
+          previousMaxReps: previousMaximums.get(exercise.id) ?? 0
+        }
+      })
+    )
     const completedDaySet = new Set(
       allCompletions.map((completion) => completion.day)
     )
