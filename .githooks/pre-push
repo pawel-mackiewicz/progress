@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+set -eu
+
+pnpm run lint:fix
+pnpm run typecheck
+pnpm test
