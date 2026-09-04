@@ -1,5 +1,5 @@
+import type { ProgressDatabase } from '@/db'
 import { shiftLocalDay, type LocalDayKey } from '@/progress/date'
-import { progressDatabase, type ProgressDatabase } from '@/progress/database'
 import type {
   DashboardExercise,
   DashboardSnapshot,
@@ -199,5 +199,3 @@ export class DexieProgressQueries implements ProgressQueries {
     }
   }
 }
-
-export const progressQueries = new DexieProgressQueries(progressDatabase)

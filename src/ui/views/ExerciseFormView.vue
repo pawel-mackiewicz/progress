@@ -3,14 +3,13 @@ import { Archive, Save, Sparkles } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useProgressCommands, useProgressQueries } from '@/progress/context'
 import { toLocalDayKey } from '@/progress/date'
-import { DuplicateExerciseNameError } from '@/progress/commands'
+import { useAppServices } from '@/ui/appServices'
 import { PROGRESS_MESSAGES } from '@/ui/progress/Progress.messages'
 import { useRoute, useRouter } from '@/ui/router/runtime'
+import { DuplicateExerciseNameError } from '@/progress/write/exercises/domain/Exercise'
 
-const queries = useProgressQueries()
-const commands = useProgressCommands()
+const { commands, queries, useCases } = useAppServices()
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n({
@@ -59,7 +58,7 @@ async function saveExercise() {
     if (exerciseId.value) {
       await commands.updateExercise(exerciseId.value, draft, toLocalDayKey())
     } else {
-      await commands.createExercise(draft, toLocalDayKey())
+      await useCases.registerExercise.handle(draft)
     }
 
     await router.push('/')

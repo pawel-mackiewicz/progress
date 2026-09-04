@@ -1,4 +1,4 @@
-import { progressDatabase, type ProgressDatabase } from '@/progress/database'
+import type { ProgressDatabase } from '@/db'
 import type { LocalDayKey } from '@/progress/date'
 import type {
   Exercise,
@@ -8,14 +8,13 @@ import type {
   RepIncrement,
   RepLog
 } from '@/progress/types'
+import {
+  DuplicateExerciseNameError,
+  normalizeExerciseName
+} from '@/progress/write/exercises/domain/Exercise'
 
-export class DuplicateExerciseNameError extends Error {}
 export class ExerciseNotFoundError extends Error {}
 export class ExerciseArchivedError extends Error {}
-
-function normalizeExerciseName(name: string) {
-  return name.trim().toLocaleLowerCase()
-}
 
 export class DexieProgressCommands implements ProgressCommands {
   constructor(
@@ -23,26 +22,6 @@ export class DexieProgressCommands implements ProgressCommands {
     private readonly now: () => Date = () => new Date(),
     private readonly createId: () => string = () => crypto.randomUUID()
   ) {}
-
-  async createExercise(draft: ExerciseDraft, _day: LocalDayKey) {
-    void _day
-    const timestamp = this.now().toISOString()
-    const exercise: Exercise = {
-      id: this.createId(),
-      name: draft.name.trim(),
-      dailyGoal: draft.dailyGoal,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      archivedAt: null
-    }
-
-    await this.database.transaction('rw', this.database.exercises, async () => {
-      await this.assertUniqueActiveName(exercise.name)
-      await this.database.exercises.add(exercise)
-    })
-
-    return exercise
-  }
 
   async updateExercise(id: string, draft: ExerciseDraft, day: LocalDayKey) {
     return this.database.transaction(
@@ -258,5 +237,3 @@ export class DexieProgressCommands implements ProgressCommands {
     return totals
   }
 }
-
-export const progressCommands = new DexieProgressCommands(progressDatabase)

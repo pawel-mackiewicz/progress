@@ -1,12 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import {
-  DexieProgressCommands,
-  DuplicateExerciseNameError
-} from '@/progress/commands'
-import { ProgressDatabase } from '@/progress/database'
+import { ProgressDatabase } from '@/db'
+import { DexieProgressCommands } from '@/progress/commands'
 import type { LocalDayKey } from '@/progress/date'
 import { DexieProgressQueries } from '@/progress/queries'
+import { RegisterExerciseUseCase } from '@/progress/write/exercises/application/RegisterExerciseUseCase'
+import { DuplicateExerciseNameError } from '@/progress/write/exercises/domain/Exercise'
+import { DexieExerciseRepo } from '@/progress/write/exercises/infra/db/DexieExerciseRepo'
+import { DexieUnitOfWork } from '@/progress/write/shared/infra/db/DexieUnitOfWork'
+
+class StoryIdGenerator {
+  public latestId = ''
+  private counter = 0
+
+  public generate() {
+    this.latestId = `story-id-${++this.counter}`
+    return this.latestId
+  }
+}
 
 describe('a training day saved on the athlete’s device', () => {
   const today = '2026-08-24' as LocalDayKey
@@ -17,16 +28,23 @@ describe('a training day saved on the athlete’s device', () => {
   let databaseName: string
   let commands: DexieProgressCommands
   let queries: DexieProgressQueries
-  let idCounter: number
+  let registerExercise: RegisterExerciseUseCase
+  let idGenerator: StoryIdGenerator
 
   beforeEach(() => {
     databaseName = `progress-story-${crypto.randomUUID()}`
     database = new ProgressDatabase(databaseName)
-    idCounter = 0
+    idGenerator = new StoryIdGenerator()
+    registerExercise = new RegisterExerciseUseCase(
+      new DexieUnitOfWork(database),
+      new DexieExerciseRepo(database),
+      idGenerator,
+      { now: () => fixedNow }
+    )
     commands = new DexieProgressCommands(
       database,
       () => fixedNow,
-      () => `story-id-${++idCounter}`
+      () => idGenerator.generate()
     )
     queries = new DexieProgressQueries(database)
   })
@@ -36,7 +54,14 @@ describe('a training day saved on the athlete’s device', () => {
   })
 
   async function givenAnExercise(name: string, dailyGoal: number) {
-    return commands.createExercise({ name, dailyGoal }, today)
+    await registerExercise.handle({ name, dailyGoal })
+    const exercise = await database.exercises.get(idGenerator.latestId)
+
+    if (!exercise) {
+      throw new Error('The exercise was not persisted for the story.')
+    }
+
+    return exercise
   }
 
   async function whenTheAthleteAdds(

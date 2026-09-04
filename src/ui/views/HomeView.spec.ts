@@ -1,8 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { defineComponent } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { provideProgressServices } from '@/progress/context'
+import type { AppUseCases } from '@/appServices'
 import { shiftLocalDay, toLocalDayKey } from '@/progress/date'
 import type {
   DashboardExercise,
@@ -10,6 +9,7 @@ import type {
   ProgressCommands,
   ProgressQueries
 } from '@/progress/types'
+import { createAppServicesProvides } from '@/ui/appServices'
 import { createAppI18n } from '@/ui/i18n'
 import { useRouter } from '@/ui/router/runtime'
 import HomeView from '@/ui/views/HomeView.vue'
@@ -26,6 +26,7 @@ describe('today’s arcade training dashboard', () => {
   const today = toLocalDayKey()
   let queries: ProgressQueries
   let commands: ProgressCommands
+  let registerExercise: AppUseCases['registerExercise']
 
   function snapshot(
     overrides: Partial<DashboardSnapshot> = {}
@@ -67,12 +68,14 @@ describe('today’s arcade training dashboard', () => {
     vi.mocked(useRouter).mockReturnValue({
       push: vi.fn()
     } as unknown as ReturnType<typeof useRouter>)
+    registerExercise = {
+      handle: vi.fn().mockResolvedValue(undefined)
+    }
     queries = {
       getExercise: vi.fn(),
       getDashboard: vi.fn().mockResolvedValue(snapshot())
     }
     commands = {
-      createExercise: vi.fn(),
       updateExercise: vi.fn(),
       archiveExercise: vi.fn(),
       restoreExercise: vi.fn(),
@@ -82,16 +85,15 @@ describe('today’s arcade training dashboard', () => {
   })
 
   function openDashboard() {
-    const Host = defineComponent({
-      components: { HomeView },
-      setup() {
-        provideProgressServices(queries, commands)
-      },
-      template: '<HomeView />'
-    })
-
-    return mount(Host, {
-      global: { plugins: [createAppI18n('en')] }
+    return mount(HomeView, {
+      global: {
+        plugins: [createAppI18n('en')],
+        provide: createAppServicesProvides({
+          queries,
+          commands,
+          useCases: { registerExercise }
+        })
+      }
     })
   }
 

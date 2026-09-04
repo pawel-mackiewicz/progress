@@ -64,7 +64,6 @@ export interface ProgressQueries {
 }
 
 export interface ProgressCommands {
-  createExercise(draft: ExerciseDraft, day: LocalDayKey): Promise<Exercise>
   updateExercise(
     id: string,
     draft: ExerciseDraft,

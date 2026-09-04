@@ -3,9 +3,9 @@ import { Plus } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useProgressCommands, useProgressQueries } from '@/progress/context'
 import { monthRange, toLocalDayKey } from '@/progress/date'
 import type { DashboardSnapshot, RepIncrement } from '@/progress/types'
+import { useAppServices } from '@/ui/appServices'
 import CompletionCalendar from '@/ui/progress/CompletionCalendar.vue'
 import CompletionCelebration from '@/ui/progress/CompletionCelebration.vue'
 import HomeArchivedExercises from '@/ui/progress/HomeArchivedExercises.vue'
@@ -14,8 +14,7 @@ import HomeHero from '@/ui/progress/HomeHero.vue'
 import { PROGRESS_MESSAGES } from '@/ui/progress/Progress.messages'
 import { RouterLink, useRouter } from '@/ui/router/runtime'
 
-const queries = useProgressQueries()
-const commands = useProgressCommands()
+const { commands, queries } = useAppServices()
 const router = useRouter()
 const { t } = useI18n({
   useScope: 'local',

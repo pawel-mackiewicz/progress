@@ -1,13 +1,14 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { defineComponent, reactive } from 'vue'
+import { reactive } from 'vue'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
-import { provideProgressServices } from '@/progress/context'
+import type { AppUseCases } from '@/appServices'
 import type {
   Exercise,
   ProgressCommands,
   ProgressQueries
 } from '@/progress/types'
+import { createAppServicesProvides } from '@/ui/appServices'
 import { createAppI18n } from '@/ui/i18n'
 import { useRoute, useRouter } from '@/ui/router/runtime'
 import ExerciseFormView from '@/ui/views/ExerciseFormView.vue'
@@ -21,17 +22,20 @@ describe('the exercise mission form', () => {
   let route: { params: Record<string, string> }
   let queries: ProgressQueries
   let commands: ProgressCommands
+  let registerExercise: AppUseCases['registerExercise']
   let push: Mock
 
   beforeEach(() => {
     route = reactive({ params: {} })
     push = vi.fn().mockResolvedValue(undefined)
+    registerExercise = {
+      handle: vi.fn().mockResolvedValue(undefined)
+    }
     queries = {
       getExercise: vi.fn().mockResolvedValue(undefined),
       getDashboard: vi.fn()
     }
     commands = {
-      createExercise: vi.fn(),
       updateExercise: vi.fn(),
       archiveExercise: vi.fn(),
       restoreExercise: vi.fn(),
@@ -48,16 +52,15 @@ describe('the exercise mission form', () => {
   })
 
   function openForm() {
-    const Host = defineComponent({
-      components: { ExerciseFormView },
-      setup() {
-        provideProgressServices(queries, commands)
-      },
-      template: '<ExerciseFormView />'
-    })
-
-    return mount(Host, {
-      global: { plugins: [createAppI18n('en')] }
+    return mount(ExerciseFormView, {
+      global: {
+        plugins: [createAppI18n('en')],
+        provide: createAppServicesProvides({
+          queries,
+          commands,
+          useCases: { registerExercise }
+        })
+      }
     })
   }
 
@@ -68,7 +71,7 @@ describe('the exercise mission form', () => {
 
     expect(form.text()).toContain('Enter an exercise name.')
     expect(form.text()).toContain('positive whole number')
-    expect(commands.createExercise).not.toHaveBeenCalled()
+    expect(registerExercise.handle).not.toHaveBeenCalled()
   })
 
   it('turns a name and daily target into a new active quest', async () => {
@@ -80,10 +83,10 @@ describe('the exercise mission form', () => {
     await form.get('form').trigger('submit')
     await flushPromises()
 
-    expect(commands.createExercise).toHaveBeenCalledWith(
-      { name: 'Push-ups', dailyGoal: 100 },
-      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
-    )
+    expect(registerExercise.handle).toHaveBeenCalledWith({
+      name: 'Push-ups',
+      dailyGoal: 100
+    })
     expect(push).toHaveBeenCalledWith('/')
   })
 

@@ -1,10 +1,13 @@
 import { createApp } from 'vue'
 
-import { requestPersistentStorage } from './progress/database'
+import { createAppServices } from './appServices'
+import { ProgressDatabase } from './db'
+import { provideAppServices } from './ui/appServices'
 import { i18n } from './ui/i18n'
 import App from './ui/App.vue'
 import router from './ui/router'
 import { registerPwa } from './ui/pwa/register'
+import { requestPersistentStorage } from './ui/pwa/storage'
 import './ui/fonts.css'
 import './ui/style.css'
 
@@ -17,4 +20,9 @@ registerPwa({
 
 void requestPersistentStorage()
 
-createApp(App).use(i18n).use(router).mount('#app')
+const app = createApp(App)
+const services = createAppServices(new ProgressDatabase())
+
+provideAppServices(app, services)
+
+app.use(i18n).use(router).mount('#app')
