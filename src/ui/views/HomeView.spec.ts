@@ -97,8 +97,12 @@ describe('today’s arcade training dashboard', () => {
 
   function exerciseNames(dashboard: ReturnType<typeof openDashboard>) {
     return dashboard
-      .findAll('.home-exercises__summary strong')
-      .map((exerciseName) => exerciseName.text())
+      .findAll('.home-exercises__item')
+      .map((exerciseItem) =>
+        exerciseItem
+          .get('.home-exercises__summary strong, .exercise-card__name')
+          .text()
+      )
   }
 
   async function givenTheyCompleteTheFirstOfTwoExercises() {
@@ -214,23 +218,36 @@ describe('today’s arcade training dashboard', () => {
 
     await pushUps.trigger('click')
 
-    expect(pushUps.attributes('aria-expanded')).toBe('true')
+    expect(
+      dashboard.find('[data-testid="exercise-toggle-push-ups"]').exists()
+    ).toBe(false)
+    expect(
+      dashboard.find('[data-testid="exercise-collapse-push-ups"]').exists()
+    ).toBe(true)
     expect(dashboard.get('.exercise-card').attributes('id')).toBe(
       'exercise-details-push-ups'
     )
 
     await squats.trigger('click')
 
-    expect(pushUps.attributes('aria-expanded')).toBe('false')
-    expect(squats.attributes('aria-expanded')).toBe('true')
+    expect(
+      dashboard.find('[data-testid="exercise-toggle-push-ups"]').exists()
+    ).toBe(true)
+    expect(
+      dashboard.find('[data-testid="exercise-toggle-squats"]').exists()
+    ).toBe(false)
     expect(dashboard.findAll('.exercise-card')).toHaveLength(1)
     expect(dashboard.get('.exercise-card').attributes('id')).toBe(
       'exercise-details-squats'
     )
 
-    await squats.trigger('click')
+    await dashboard
+      .get('[data-testid="exercise-collapse-squats"]')
+      .trigger('click')
 
-    expect(squats.attributes('aria-expanded')).toBe('false')
+    expect(
+      dashboard.find('[data-testid="exercise-toggle-squats"]').exists()
+    ).toBe(true)
     expect(dashboard.findAll('.exercise-card')).toHaveLength(0)
   })
 
@@ -243,7 +260,7 @@ describe('today’s arcade training dashboard', () => {
     ).toBe(true)
 
     await dashboard
-      .get('[data-testid="exercise-toggle-push-ups"]')
+      .get('[data-testid="exercise-collapse-push-ups"]')
       .trigger('click')
 
     expect(exerciseNames(dashboard)).toEqual(['Squats', 'Push-ups'])

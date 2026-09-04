@@ -17,7 +17,6 @@ export const PROGRESS_MESSAGES = {
       exerciseComplete: 'Wykonane',
       exerciseIncomplete: 'Do wykonania',
       expandExercise: 'Rozwiń {name}. Status: {status}',
-      collapseExercise: 'Zwiń {name}. Status: {status}',
       loadError:
         'Nie udało się odczytać danych. Odśwież aplikację i spróbuj ponownie.',
       actionError: 'Nie udało się zapisać zmiany. Spróbuj ponownie.',
@@ -29,6 +28,7 @@ export const PROGRESS_MESSAGES = {
     },
     card: {
       completed: 'CEL ZALICZONY',
+      collapse: 'Zwiń szczegóły: {name}',
       remaining: 'Zostało {count}',
       yesterday: 'Wczoraj: {count}',
       previousMax: 'Poprzedni maks.: {count}',
@@ -89,7 +89,6 @@ export const PROGRESS_MESSAGES = {
       exerciseComplete: 'Completed',
       exerciseIncomplete: 'Not completed',
       expandExercise: 'Expand {name}. Status: {status}',
-      collapseExercise: 'Collapse {name}. Status: {status}',
       loadError:
         'Your data could not be loaded. Refresh the app and try again.',
       actionError: 'That change could not be saved. Try again.',
@@ -101,6 +100,7 @@ export const PROGRESS_MESSAGES = {
     },
     card: {
       completed: 'GOAL CLEARED',
+      collapse: 'Collapse details for {name}',
       remaining: '{count} to go',
       yesterday: 'Yesterday: {count}',
       previousMax: 'Previous max: {count}',

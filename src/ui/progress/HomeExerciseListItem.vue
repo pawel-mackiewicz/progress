@@ -32,12 +32,13 @@ const { t } = useI18n({
     }"
   >
     <button
+      v-if="!expanded"
       class="home-exercises__toggle"
       type="button"
       :aria-controls="`exercise-details-${exercise.id}`"
-      :aria-expanded="expanded"
+      aria-expanded="false"
       :aria-label="
-        t(expanded ? 'home.collapseExercise' : 'home.expandExercise', {
+        t('home.expandExercise', {
           name: exercise.name,
           status: t(
             exercise.isComplete
@@ -69,17 +70,18 @@ const { t } = useI18n({
       </span>
       <ChevronDown
         class="home-exercises__chevron"
-        :class="{ 'home-exercises__chevron--expanded': expanded }"
         aria-hidden="true"
         :size="22"
       />
     </button>
 
     <ExerciseCard
-      v-if="expanded"
+      v-else
       :id="`exercise-details-${exercise.id}`"
+      collapsible
       :exercise="exercise"
       @add="emit('add', $event)"
+      @collapse="emit('toggle')"
       @edit="emit('edit')"
     />
   </li>
@@ -113,20 +115,6 @@ const { t } = useI18n({
     transform 90ms ease;
 }
 
-.home-exercises__item--expanded .home-exercises__toggle::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 0.22rem;
-  background: var(--color-primary);
-  box-shadow: 0 0 1rem var(--color-primary);
-  content: '';
-}
-
-.home-exercises__item--complete .home-exercises__toggle::before {
-  background: var(--color-success);
-  box-shadow: 0 0 1rem var(--color-success);
-}
-
 .home-exercises__toggle:hover,
 .home-exercises__toggle:focus-visible {
   border-color: var(--color-primary);
@@ -144,19 +132,6 @@ const { t } = useI18n({
 
 .home-exercises__item--complete .home-exercises__toggle {
   border-color: rgb(from var(--color-success) r g b / 0.55);
-}
-
-.home-exercises__item--expanded .home-exercises__toggle {
-  border-end-start-radius: 0;
-  border-end-end-radius: 0;
-}
-
-.home-exercises__item--expanded :deep(.exercise-card) {
-  border-top: 0;
-  border-start-start-radius: 0;
-  border-start-end-radius: 0;
-  transform-origin: top;
-  animation: exercise-card-open 160ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .home-exercises__status-icon {
@@ -183,23 +158,22 @@ const { t } = useI18n({
 
 .home-exercises__chevron {
   color: var(--color-secondary);
-  transition: transform 180ms ease;
 }
 
-.home-exercises__chevron--expanded {
-  transform: rotate(180deg);
+.home-exercises__item--expanded :deep(.exercise-card) {
+  transform-origin: top;
+  animation: exercise-card-open 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes exercise-card-open {
   from {
     opacity: 0;
-    transform: translateY(-0.35rem) scaleY(0.985);
+    transform: translateY(-0.3rem) scale(0.985);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-exercises__toggle,
-  .home-exercises__chevron {
+  .home-exercises__toggle {
     transition: none;
   }
 

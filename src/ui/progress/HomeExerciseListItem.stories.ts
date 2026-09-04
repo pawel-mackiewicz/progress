@@ -69,13 +69,23 @@ export const ExpandedQuest: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement)
 
+    await expect(
+      canvas.queryByTestId('exercise-toggle-push-ups')
+    ).not.toBeInTheDocument()
+    await expect(
+      canvas.getByRole('button', { name: 'Zwiń szczegóły: Pompki' })
+    ).toBeInTheDocument()
     await expect(canvas.getByRole('progressbar')).toBeInTheDocument()
     await userEvent.click(
       canvas.getByRole('button', { name: 'Dodaj 5 powtórzeń do Pompki' })
     )
     await userEvent.click(canvas.getByRole('button', { name: 'Edytuj Pompki' }))
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Zwiń szczegóły: Pompki' })
+    )
     await expect(args.onAdd).toHaveBeenCalledWith(5)
     await expect(args.onEdit).toHaveBeenCalledOnce()
+    await expect(args.onToggle).toHaveBeenCalledOnce()
   }
 }
 
@@ -93,10 +103,11 @@ export const CompletedQuest: Story = {
     const canvas = within(canvasElement)
 
     await expect(
-      canvas.getByRole('button', {
-        name: 'Zwiń Pompki. Status: Wykonane'
-      })
-    ).toHaveAttribute('aria-expanded', 'true')
+      canvas.queryByTestId('exercise-toggle-push-ups')
+    ).not.toBeInTheDocument()
+    await expect(
+      canvas.getByRole('button', { name: 'Zwiń szczegóły: Pompki' })
+    ).toBeInTheDocument()
     await expect(canvas.getByText('CEL ZALICZONY')).toBeInTheDocument()
   }
 }

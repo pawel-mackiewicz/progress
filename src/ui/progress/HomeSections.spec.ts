@@ -146,10 +146,19 @@ describe('the home dashboard sections', () => {
     expect(list.emitted('toggle')).toEqual([['push-ups']])
 
     await list.setProps({ expandedExerciseId: 'push-ups' })
+    expect(list.find('[data-testid="exercise-toggle-push-ups"]').exists()).toBe(
+      false
+    )
+    expect(
+      list.find('[data-testid="exercise-collapse-push-ups"]').exists()
+    ).toBe(true)
     await list
       .get('button[aria-label="Add 5 reps to Push-ups"]')
       .trigger('click')
     await list.get('button[aria-label="Edit Push-ups"]').trigger('click')
+    await list
+      .get('[data-testid="exercise-collapse-push-ups"]')
+      .trigger('click')
 
     expect(list.findAll('.exercise-card')).toHaveLength(1)
     expect(list.get('.exercise-card').attributes('id')).toBe(
@@ -157,6 +166,7 @@ describe('the home dashboard sections', () => {
     )
     expect(list.emitted('add')).toEqual([['push-ups', 'Push-ups', 5]])
     expect(list.emitted('edit')).toEqual([['push-ups']])
+    expect(list.emitted('toggle')).toEqual([['push-ups'], ['push-ups']])
   })
 
   it('keeps the archive hidden until there is a quest to restore', async () => {
