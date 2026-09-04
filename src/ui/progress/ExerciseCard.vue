@@ -185,9 +185,10 @@ const { t } = useI18n({
   margin: 0.38rem 0 0;
   color: var(--color-secondary);
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.08em;
+  line-height: 1.35;
 }
 
 .exercise-card--complete .exercise-card__status {
@@ -243,9 +244,10 @@ const { t } = useI18n({
 .exercise-card__history-item {
   color: var(--color-secondary);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.04em;
+  line-height: 1.35;
   white-space: nowrap;
 }
 

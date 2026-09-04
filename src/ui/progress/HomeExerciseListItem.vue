@@ -122,8 +122,7 @@ const { t } = useI18n({
   content: '';
 }
 
-.home-exercises__item--complete.home-exercises__item--expanded,
-.home-exercises__toggle::before {
+.home-exercises__item--complete .home-exercises__toggle::before {
   background: var(--color-success);
   box-shadow: 0 0 1rem var(--color-success);
 }
@@ -176,7 +175,8 @@ const { t } = useI18n({
 .home-exercises__summary strong {
   overflow: hidden;
   font-family: var(--font-headline);
-  font-size: 1rem;
+  font-size: 1.0625rem;
+  line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
