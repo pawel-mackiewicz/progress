@@ -28,6 +28,12 @@ test.describe('a first-time athlete starts tracking daily progress', () => {
     })
 
     await thenTheirNewExerciseAppears(page, 'Push-ups')
+    await whenTheyChooseToAddAnExercise(page)
+    await whenTheyCreateAnExercise(page, {
+      name: 'Squats',
+      dailyGoal: 20
+    })
+    await thenTheirNewExerciseAppears(page, 'Squats')
     await whenTheyExpandTheExercise(page, 'Push-ups')
     await thenTheirNewExerciseStartsAtZero(page, {
       name: 'Push-ups',
@@ -38,6 +44,9 @@ test.describe('a first-time athlete starts tracking daily progress', () => {
     await whenTheyRecordFiveReps(page, 'Push-ups')
 
     await thenTheySeeThatTodaysGoalIsComplete(page, 'Push-ups')
+    await thenTheCompletedExerciseStaysInPlace(page)
+    await whenTheyCollapseTheCompletedExercise(page, 'Push-ups')
+    await thenTheCompletedExerciseMovesBelowTheUnfinishedExercise(page)
   })
 })
 
@@ -316,6 +325,37 @@ async function thenTheySeeThatTodaysGoalIsComplete(
       page.getByRole('status').filter({ hasText: 'Quest complete!' })
     ).toBeVisible()
   })
+}
+
+async function thenTheCompletedExerciseStaysInPlace(page: Page) {
+  await test.step('And the open completed exercise stays where they were working', async () => {
+    await expect(exerciseNames(page)).toHaveText(['Push-ups', 'Squats'])
+  })
+}
+
+async function whenTheyCollapseTheCompletedExercise(
+  page: Page,
+  exerciseName: string
+) {
+  await test.step('When they close the completed exercise', async () => {
+    await page
+      .getByRole('button', {
+        name: `Collapse ${exerciseName}. Status: Completed`
+      })
+      .click()
+  })
+}
+
+async function thenTheCompletedExerciseMovesBelowTheUnfinishedExercise(
+  page: Page
+) {
+  await test.step('Then it moves below the exercise that still needs work', async () => {
+    await expect(exerciseNames(page)).toHaveText(['Squats', 'Push-ups'])
+  })
+}
+
+function exerciseNames(page: Page) {
+  return page.locator('.home-exercises__summary strong')
 }
 
 function progressFor(page: Page, exerciseName: string) {

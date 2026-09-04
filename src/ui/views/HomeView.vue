@@ -34,12 +34,42 @@ const lastRepLogId = ref<string | null>(null)
 const undoCopy = ref('')
 const showCelebration = ref(false)
 const expandedExerciseId = ref<string | null>(null)
+const deferredCompletedExerciseId = ref<string | null>(null)
+const deferredExerciseOrder = ref<string[]>([])
 let snackbarTimer: ReturnType<typeof setTimeout> | undefined
 let celebrationTimer: ReturnType<typeof setTimeout> | undefined
 let midnightTimer: ReturnType<typeof setTimeout> | undefined
 let loadSequence = 0
 
 const today = computed(() => toLocalDayKey(now.value))
+const visibleExercises = computed(() => {
+  const exercises = snapshot.value?.exercises ?? []
+
+  if (!deferredCompletedExerciseId.value) {
+    return exercises
+  }
+
+  const exercisesById = new Map(
+    exercises.map((exercise) => [exercise.id, exercise])
+  )
+  const orderedExercises = deferredExerciseOrder.value.flatMap((exerciseId) => {
+    const exercise = exercisesById.get(exerciseId)
+
+    if (!exercise) {
+      return []
+    }
+
+    exercisesById.delete(exerciseId)
+    return [exercise]
+  })
+
+  return [...orderedExercises, ...exercisesById.values()]
+})
+
+function clearDeferredExerciseOrder() {
+  deferredCompletedExerciseId.value = null
+  deferredExerciseOrder.value = []
+}
 
 async function loadSnapshot() {
   const sequence = ++loadSequence
@@ -55,6 +85,18 @@ async function loadSnapshot() {
     if (sequence === loadSequence) {
       snapshot.value = nextSnapshot
       loadError.value = false
+
+      if (
+        deferredCompletedExerciseId.value &&
+        (expandedExerciseId.value !== deferredCompletedExerciseId.value ||
+          !nextSnapshot.exercises.some(
+            (exercise) =>
+              exercise.id === deferredCompletedExerciseId.value &&
+              exercise.isComplete
+          ))
+      ) {
+        clearDeferredExerciseOrder()
+      }
 
       if (
         expandedExerciseId.value &&
@@ -82,6 +124,10 @@ async function addReps(
   amount: RepIncrement
 ) {
   actionError.value = false
+  const exerciseWasIncomplete = !snapshot.value?.exercises.find(
+    (exercise) => exercise.id === exerciseId
+  )?.isComplete
+  const exerciseOrder = visibleExercises.value.map((exercise) => exercise.id)
 
   try {
     const result = await commands.recordReps(exerciseId, amount, today.value)
@@ -96,7 +142,21 @@ async function addReps(
       celebrate()
     }
 
+    if (exerciseWasIncomplete && expandedExerciseId.value === exerciseId) {
+      deferredCompletedExerciseId.value = exerciseId
+      deferredExerciseOrder.value = exerciseOrder
+    }
+
     await loadSnapshot()
+
+    if (
+      deferredCompletedExerciseId.value === exerciseId &&
+      !snapshot.value?.exercises.some(
+        (exercise) => exercise.id === exerciseId && exercise.isComplete
+      )
+    ) {
+      clearDeferredExerciseOrder()
+    }
   } catch {
     actionError.value = true
   }
@@ -137,6 +197,10 @@ function editExercise(exerciseId: string) {
 }
 
 function toggleExercise(exerciseId: string) {
+  if (expandedExerciseId.value === deferredCompletedExerciseId.value) {
+    clearDeferredExerciseOrder()
+  }
+
   expandedExerciseId.value =
     expandedExerciseId.value === exerciseId ? null : exerciseId
 }
@@ -241,7 +305,7 @@ onUnmounted(() => {
 
     <template v-else-if="snapshot">
       <HomeExerciseList
-        :exercises="snapshot.exercises"
+        :exercises="visibleExercises"
         :expanded-exercise-id="expandedExerciseId"
         @add="addReps"
         @edit="editExercise"

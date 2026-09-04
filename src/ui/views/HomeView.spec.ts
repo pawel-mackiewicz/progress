@@ -95,6 +95,52 @@ describe('today’s arcade training dashboard', () => {
     })
   }
 
+  function exerciseNames(dashboard: ReturnType<typeof openDashboard>) {
+    return dashboard
+      .findAll('.home-exercises__summary strong')
+      .map((exerciseName) => exerciseName.text())
+  }
+
+  async function givenTheyCompleteTheFirstOfTwoExercises() {
+    const pushUps = exercise()
+    const squats = exercise({
+      id: 'squats',
+      name: 'Squats',
+      createdAt: '2026-08-24T09:00:00.000Z',
+      updatedAt: '2026-08-24T09:00:00.000Z'
+    })
+    const activeDay = snapshot({ exercises: [pushUps, squats] })
+    const completedPushUps = {
+      ...pushUps,
+      completedReps: 10,
+      remainingReps: 0,
+      progressPercent: 100,
+      isComplete: true
+    }
+    const updatedDay = snapshot({
+      exercises: [squats, completedPushUps]
+    })
+    vi.mocked(queries.getDashboard)
+      .mockResolvedValueOnce(activeDay)
+      .mockResolvedValueOnce(updatedDay)
+    vi.mocked(commands.recordReps).mockResolvedValue({
+      repLogId: 'clearing-set',
+      didEarnDay: false
+    })
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    await dashboard
+      .get('[data-testid="exercise-toggle-push-ups"]')
+      .trigger('click')
+    await dashboard
+      .get('button[aria-label="Add 5 reps to Push-ups"]')
+      .trigger('click')
+    await flushPromises()
+
+    return dashboard
+  }
+
   it('invites a first-time athlete to create the first quest', async () => {
     const dashboard = openDashboard()
     await flushPromises()
@@ -186,6 +232,37 @@ describe('today’s arcade training dashboard', () => {
 
     expect(squats.attributes('aria-expanded')).toBe('false')
     expect(dashboard.findAll('.exercise-card')).toHaveLength(0)
+  })
+
+  it('keeps a newly cleared quest in place until the athlete collapses it', async () => {
+    const dashboard = await givenTheyCompleteTheFirstOfTwoExercises()
+
+    expect(exerciseNames(dashboard)).toEqual(['Push-ups', 'Squats'])
+    expect(
+      dashboard.find('[data-testid="exercise-card-push-ups"]').exists()
+    ).toBe(true)
+
+    await dashboard
+      .get('[data-testid="exercise-toggle-push-ups"]')
+      .trigger('click')
+
+    expect(exerciseNames(dashboard)).toEqual(['Squats', 'Push-ups'])
+    expect(dashboard.findAll('.exercise-card')).toHaveLength(0)
+  })
+
+  it('moves a newly cleared quest down when the athlete opens another one', async () => {
+    const dashboard = await givenTheyCompleteTheFirstOfTwoExercises()
+
+    expect(exerciseNames(dashboard)).toEqual(['Push-ups', 'Squats'])
+
+    await dashboard
+      .get('[data-testid="exercise-toggle-squats"]')
+      .trigger('click')
+
+    expect(exerciseNames(dashboard)).toEqual(['Squats', 'Push-ups'])
+    expect(dashboard.get('.exercise-card').attributes('id')).toBe(
+      'exercise-details-squats'
+    )
   })
 
   it('turns the final quick-add tap into a visible perfect-day reward', async () => {
