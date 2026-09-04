@@ -28,12 +28,6 @@ test.describe('a first-time athlete starts tracking daily progress', () => {
     })
 
     await thenTheirNewExerciseAppears(page, 'Push-ups')
-    await whenTheyChooseToAddAnExercise(page)
-    await whenTheyCreateAnExercise(page, {
-      name: 'Squats',
-      dailyGoal: 20
-    })
-    await thenTheirNewExerciseAppears(page, 'Squats')
     await whenTheyExpandTheExercise(page, 'Push-ups')
     await thenTheirNewExerciseStartsAtZero(page, {
       name: 'Push-ups',
@@ -44,9 +38,32 @@ test.describe('a first-time athlete starts tracking daily progress', () => {
     await whenTheyRecordFiveReps(page, 'Push-ups')
 
     await thenTheySeeThatTodaysGoalIsComplete(page, 'Push-ups')
+  })
+})
+
+test.describe('an athlete clears one exercise while another still needs work', () => {
+  test('keeps the completed exercise in place until they collapse it', async ({
+    page
+  }) => {
+    await givenTheyAreTrainingPushUpsBeforeSquats(page)
+
+    await whenTheyCompletePushUps(page)
+
     await thenTheCompletedExerciseStaysInPlace(page)
     await whenTheyCollapseTheCompletedExercise(page, 'Push-ups')
     await thenTheCompletedExerciseMovesBelowTheUnfinishedExercise(page)
+  })
+
+  test('reorders the completed exercise when they switch exercises', async ({
+    page
+  }) => {
+    await givenTheyAreTrainingPushUpsBeforeSquats(page)
+
+    await whenTheyCompletePushUps(page)
+    await thenTheCompletedExerciseStaysInPlace(page)
+    await whenTheyExpandTheExercise(page, 'Squats')
+
+    await thenSquatsAreOpenAboveTheCompletedExercise(page)
   })
 })
 
@@ -199,6 +216,23 @@ async function whenTheyChooseToAddAnExercise(page: Page) {
   })
 }
 
+async function givenTheyAreTrainingPushUpsBeforeSquats(page: Page) {
+  await test.step('Given they are training Push-ups before Squats', async () => {
+    await givenTheyOpenTheDashboard(page)
+    await whenTheyChooseToAddAnExercise(page)
+    await whenTheyCreateAnExercise(page, {
+      name: 'Push-ups',
+      dailyGoal: 15
+    })
+    await whenTheyChooseToAddAnExercise(page)
+    await whenTheyCreateAnExercise(page, {
+      name: 'Squats',
+      dailyGoal: 20
+    })
+    await whenTheyExpandTheExercise(page, 'Push-ups')
+  })
+}
+
 async function whenTheyTryToSaveTheEmptyExercise(page: Page) {
   await test.step('And they try to save without entering any details', async () => {
     await page.getByRole('button', { name: 'Save exercise' }).click()
@@ -306,6 +340,40 @@ async function whenTheyRecordFiveReps(page: Page, exerciseName: string) {
   })
 }
 
+async function whenTheyCompletePushUps(page: Page) {
+  await test.step('When they complete Push-ups', async () => {
+    await whenTheyRecordTenReps(page, 'Push-ups')
+    await thenTheySeeFiveRepsRemaining(page, 'Push-ups')
+    await whenTheyRecordFiveReps(page, 'Push-ups')
+    await thenTheySeeThatTheExerciseIsCompleteWhileTheDayStillNeedsWork(
+      page,
+      'Push-ups'
+    )
+  })
+}
+
+async function thenTheySeeThatTheExerciseIsCompleteWhileTheDayStillNeedsWork(
+  page: Page,
+  exerciseName: string
+) {
+  await test.step(`Then ${exerciseName} is complete while today's quest remains open`, async () => {
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Ready, player one?' })
+    ).toBeVisible()
+    await expect(progressFor(page, exerciseName)).toHaveAttribute(
+      'aria-valuenow',
+      '15'
+    )
+    await expect(page.getByText('GOAL CLEARED', { exact: true })).toBeVisible()
+    await expect(page.getByText('Start your streak today')).toBeVisible()
+    await expect(
+      page
+        .getByRole('status')
+        .filter({ hasText: `Added +5 to ${exerciseName}` })
+    ).toBeVisible()
+  })
+}
+
 async function thenTheySeeThatTodaysGoalIsComplete(
   page: Page,
   exerciseName: string
@@ -351,6 +419,17 @@ async function thenTheCompletedExerciseMovesBelowTheUnfinishedExercise(
 ) {
   await test.step('Then it moves below the exercise that still needs work', async () => {
     await expect(exerciseNames(page)).toHaveText(['Squats', 'Push-ups'])
+  })
+}
+
+async function thenSquatsAreOpenAboveTheCompletedExercise(page: Page) {
+  await test.step('Then Squats are open above the completed exercise', async () => {
+    await expect(exerciseNames(page)).toHaveText(['Squats', 'Push-ups'])
+    await expect(
+      page.getByRole('button', {
+        name: 'Collapse Squats. Status: Not completed'
+      })
+    ).toHaveAttribute('aria-expanded', 'true')
   })
 }
 

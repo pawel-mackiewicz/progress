@@ -9,7 +9,7 @@ export default defineConfig({
   testMatch: '**/*.spec.ts',
   outputDir: 'E2E/.temp/test-results',
   forbidOnly: isCi,
-  retries: isCi ? 2 : 1,
+  retries: 1,
   workers: isCi ? 1 : 2,
   reporter: [
     ['list'],
