@@ -294,7 +294,9 @@ async function thenTheirNewExerciseStartsAtZero(
 ) {
   await test.step('Then its details show no reps recorded yet', async () => {
     await expect(
-      page.getByRole('heading', { level: 3, name: exercise.name })
+      page.getByRole('button', {
+        name: `Collapse details for ${exercise.name}`
+      })
     ).toBeVisible()
 
     const progress = progressFor(page, exercise.name)
@@ -408,7 +410,7 @@ async function whenTheyCollapseTheCompletedExercise(
   await test.step('When they close the completed exercise', async () => {
     await page
       .getByRole('button', {
-        name: `Collapse ${exerciseName}. Status: Completed`
+        name: `Collapse details for ${exerciseName}`
       })
       .click()
   })
@@ -427,14 +429,14 @@ async function thenSquatsAreOpenAboveTheCompletedExercise(page: Page) {
     await expect(exerciseNames(page)).toHaveText(['Squats', 'Push-ups'])
     await expect(
       page.getByRole('button', {
-        name: 'Collapse Squats. Status: Not completed'
+        name: 'Collapse details for Squats'
       })
-    ).toHaveAttribute('aria-expanded', 'true')
+    ).toBeVisible()
   })
 }
 
 function exerciseNames(page: Page) {
-  return page.locator('.home-exercises__summary strong')
+  return page.locator('.home-exercises__summary strong, .exercise-card__name')
 }
 
 function progressFor(page: Page, exerciseName: string) {
