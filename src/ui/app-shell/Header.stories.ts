@@ -88,6 +88,9 @@ export const HomeHeader: Story = {
     await expect(
       canvas.queryByTestId('shell-back-button')
     ).not.toBeInTheDocument()
+    await expect(
+      canvas.getByRole('button', { name: 'Check for updates' })
+    ).toBeInTheDocument()
   }
 }
 

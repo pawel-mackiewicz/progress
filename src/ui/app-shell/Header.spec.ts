@@ -1,9 +1,10 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { reactive } from 'vue'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
 import Header from '@/ui/app-shell/Header.vue'
 import { createAppI18n } from '@/ui/i18n'
+import { checkForPwaUpdate } from '@/ui/pwa/update'
 import { useRoute, useRouter } from '@/ui/router/runtime'
 
 type MockRoute = {
@@ -17,6 +18,10 @@ type MockRoute = {
 vi.mock('@/ui/router/runtime', () => ({
   useRoute: vi.fn(),
   useRouter: vi.fn()
+}))
+
+vi.mock('@/ui/pwa/update', () => ({
+  checkForPwaUpdate: vi.fn()
 }))
 
 describe('Header', () => {
@@ -34,6 +39,8 @@ describe('Header', () => {
     }) as MockRoute
     mockRouterPush = vi.fn()
     mockRouterBack = vi.fn()
+    vi.mocked(checkForPwaUpdate).mockReset()
+    vi.mocked(checkForPwaUpdate).mockResolvedValue('up-to-date')
 
     vi.mocked(useRoute).mockReturnValue(
       mockRoute as unknown as ReturnType<typeof useRoute>
@@ -78,6 +85,57 @@ describe('Header', () => {
 
     expect(wrapper.get('button[aria-pressed="true"]').text()).toBe('PL')
     expect(window.localStorage.getItem('progress:locale')).toBe('pl')
+  })
+
+  it('checks for a fresh app version and reassures the athlete when they are current', async () => {
+    const wrapper = mountHeader()
+    const updateButton = wrapper.get('[data-testid="shell-update-button"]')
+
+    await updateButton.trigger('click')
+    await flushPromises()
+
+    expect(checkForPwaUpdate).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('[role="status"]').text()).toBe('You’re up to date')
+    expect(updateButton.attributes('aria-label')).toBe('Check for updates')
+  })
+
+  it('keeps another update check from starting while the first one is underway', async () => {
+    let finishCheck: ((result: 'up-to-date') => void) | undefined
+    vi.mocked(checkForPwaUpdate).mockReturnValue(
+      new Promise((resolve) => {
+        finishCheck = resolve
+      })
+    )
+    const wrapper = mountHeader()
+    const updateButton = wrapper.get('[data-testid="shell-update-button"]')
+
+    await updateButton.trigger('click')
+
+    expect(updateButton.attributes('disabled')).toBeDefined()
+    expect(updateButton.attributes('aria-busy')).toBe('true')
+    expect(wrapper.get('[role="status"]').text()).toBe('Checking for updates…')
+
+    await updateButton.trigger('click')
+    expect(checkForPwaUpdate).toHaveBeenCalledTimes(1)
+
+    finishCheck?.('up-to-date')
+    await flushPromises()
+
+    expect(updateButton.attributes('disabled')).toBeUndefined()
+  })
+
+  it('explains when the app cannot check for an update', async () => {
+    vi.mocked(checkForPwaUpdate).mockRejectedValue(
+      new Error('The service worker is unavailable.')
+    )
+    const wrapper = mountHeader()
+
+    await wrapper.get('[data-testid="shell-update-button"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[role="status"]').text()).toBe(
+      'Unable to check for updates'
+    )
   })
 
   it('uses the explicit back target when a detail route defines one', async () => {

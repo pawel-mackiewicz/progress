@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ArrowLeft } from '@lucide/vue'
-import { computed } from 'vue'
+import { ArrowLeft, CloudSync } from '@lucide/vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
@@ -9,6 +9,7 @@ import {
 } from '@/ui/app-shell/AppShell.config'
 import { APP_SHELL_MESSAGES } from '@/ui/app-shell/AppShell.messages'
 import { persistLocale, type AppLocale } from '@/ui/i18n'
+import { checkForPwaUpdate } from '@/ui/pwa/update'
 import type { AppRouteName } from '@/ui/router'
 import { useRoute, useRouter } from '@/ui/router/runtime'
 
@@ -36,10 +37,42 @@ const title = computed(() =>
 )
 const backButtonLabel = computed(() => t('header.back'))
 const showBack = computed(() => Boolean(route.meta.showBack))
+type UpdateStatus =
+  'idle' | 'checking' | 'update-found' | 'up-to-date' | 'error'
+const updateStatus = ref<UpdateStatus>('idle')
+const isCheckingForUpdates = computed(() => updateStatus.value === 'checking')
+const updateStatusLabel = computed(() => {
+  switch (updateStatus.value) {
+    case 'checking':
+      return t('header.updates.checking')
+    case 'update-found':
+      return t('header.updates.found')
+    case 'up-to-date':
+      return t('header.updates.upToDate')
+    case 'error':
+      return t('header.updates.error')
+    default:
+      return ''
+  }
+})
 
 function selectLocale(nextLocale: AppLocale) {
   locale.value = nextLocale
   persistLocale(nextLocale)
+}
+
+async function handleUpdateCheck() {
+  if (isCheckingForUpdates.value) {
+    return
+  }
+
+  updateStatus.value = 'checking'
+
+  try {
+    updateStatus.value = await checkForPwaUpdate()
+  } catch {
+    updateStatus.value = 'error'
+  }
 }
 
 function handleBack() {
@@ -93,24 +126,58 @@ function resolveBackTarget(backTo: string): string | null {
       </h1>
     </div>
 
-    <div
-      class="app-shell-header__locale"
-      role="group"
-      :aria-label="t('header.language')"
-    >
+    <div class="app-shell-header__actions">
       <button
-        v-for="option in SHELL_LOCALE_OPTIONS"
-        :key="option.value"
-        class="app-shell-header__locale-button"
-        :class="{
-          'app-shell-header__locale-button--active': locale === option.value
-        }"
+        class="app-shell-header__icon-button"
+        data-testid="shell-update-button"
         type="button"
-        :aria-pressed="locale === option.value"
-        @click="selectLocale(option.value)"
+        :aria-busy="isCheckingForUpdates"
+        :aria-label="
+          isCheckingForUpdates
+            ? t('header.updates.checking')
+            : t('header.updates.check')
+        "
+        :disabled="isCheckingForUpdates"
+        :title="t('header.updates.check')"
+        @click="handleUpdateCheck"
       >
-        {{ option.label }}
+        <CloudSync
+          aria-hidden="true"
+          :class="{
+            'app-shell-header__update-icon--checking': isCheckingForUpdates
+          }"
+          :size="20"
+        />
       </button>
+
+      <div
+        class="app-shell-header__locale"
+        role="group"
+        :aria-label="t('header.language')"
+      >
+        <button
+          v-for="option in SHELL_LOCALE_OPTIONS"
+          :key="option.value"
+          class="app-shell-header__locale-button"
+          :class="{
+            'app-shell-header__locale-button--active': locale === option.value
+          }"
+          type="button"
+          :aria-pressed="locale === option.value"
+          @click="selectLocale(option.value)"
+        >
+          {{ option.label }}
+        </button>
+      </div>
+
+      <p
+        v-if="updateStatusLabel"
+        class="app-shell-header__update-status"
+        role="status"
+        aria-live="polite"
+      >
+        {{ updateStatusLabel }}
+      </p>
     </div>
   </header>
 </template>
@@ -164,6 +231,11 @@ function resolveBackTarget(backTo: string): string | null {
   transform: scale(0.96);
 }
 
+.app-shell-header__icon-button:disabled {
+  cursor: progress;
+  opacity: 0.78;
+}
+
 .app-shell-header__icon-button:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 3px;
@@ -181,6 +253,37 @@ function resolveBackTarget(backTo: string): string | null {
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.app-shell-header__actions {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.app-shell-header__update-icon--checking {
+  animation: app-shell-update-spin 850ms linear infinite;
+}
+
+.app-shell-header__update-status {
+  position: absolute;
+  top: calc(100% + 0.8rem);
+  right: 0;
+  width: max-content;
+  max-width: min(18rem, calc(100vw - 2rem));
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgb(from var(--color-primary) r g b / 0.24);
+  border-radius: 999px;
+  color: var(--color-on-surface);
+  background: var(--color-surface-container-lowest);
+  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.28);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
 }
 
 .app-shell-header__locale {
@@ -214,5 +317,17 @@ function resolveBackTarget(backTo: string): string | null {
 .app-shell-header__locale-button:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+@keyframes app-shell-update-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell-header__update-icon--checking {
+    animation: none;
+  }
 }
 </style>
