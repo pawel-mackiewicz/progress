@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ArrowLeft, CloudSync } from '@lucide/vue'
-import { computed, ref } from 'vue'
+import { ArrowLeft, Check, CloudSync } from '@lucide/vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
@@ -39,7 +39,9 @@ const backButtonLabel = computed(() => t('header.back'))
 const showBack = computed(() => Boolean(route.meta.showBack))
 type UpdateStatus =
   'idle' | 'checking' | 'update-found' | 'up-to-date' | 'error'
+const UP_TO_DATE_DISMISS_DELAY_MS = 3_000
 const updateStatus = ref<UpdateStatus>('idle')
+let dismissUpToDateTimer: ReturnType<typeof setTimeout> | undefined
 const isCheckingForUpdates = computed(() => updateStatus.value === 'checking')
 const updateStatusLabel = computed(() => {
   switch (updateStatus.value) {
@@ -61,19 +63,36 @@ function selectLocale(nextLocale: AppLocale) {
   persistLocale(nextLocale)
 }
 
+function clearUpToDateDismissal() {
+  if (dismissUpToDateTimer !== undefined) {
+    clearTimeout(dismissUpToDateTimer)
+    dismissUpToDateTimer = undefined
+  }
+}
+
 async function handleUpdateCheck() {
   if (isCheckingForUpdates.value) {
     return
   }
 
+  clearUpToDateDismissal()
   updateStatus.value = 'checking'
 
   try {
     updateStatus.value = await checkForPwaUpdate()
+
+    if (updateStatus.value === 'up-to-date') {
+      dismissUpToDateTimer = setTimeout(() => {
+        updateStatus.value = 'idle'
+        dismissUpToDateTimer = undefined
+      }, UP_TO_DATE_DISMISS_DELAY_MS)
+    }
   } catch {
     updateStatus.value = 'error'
   }
 }
+
+onBeforeUnmount(clearUpToDateDismissal)
 
 function handleBack() {
   const backTo =
@@ -170,14 +189,27 @@ function resolveBackTarget(backTo: string): string | null {
         </button>
       </div>
 
-      <p
-        v-if="updateStatusLabel"
-        class="app-shell-header__update-status"
-        role="status"
-        aria-live="polite"
-      >
-        {{ updateStatusLabel }}
-      </p>
+      <Transition name="update-status">
+        <p
+          v-if="updateStatusLabel"
+          class="app-shell-header__update-status"
+          :class="{
+            'app-shell-header__update-status--success':
+              updateStatus === 'up-to-date'
+          }"
+          role="status"
+          aria-live="polite"
+        >
+          <span
+            v-if="updateStatus === 'up-to-date'"
+            class="app-shell-header__update-status-icon"
+            aria-hidden="true"
+          >
+            <Check :size="14" :stroke-width="3" />
+          </span>
+          <span>{{ updateStatusLabel }}</span>
+        </p>
+      </Transition>
     </div>
   </header>
 </template>
@@ -271,19 +303,76 @@ function resolveBackTarget(backTo: string): string | null {
   position: absolute;
   top: calc(100% + 0.8rem);
   right: 0;
+  display: flex;
   width: max-content;
   max-width: min(18rem, calc(100vw - 2rem));
+  align-items: center;
+  gap: 0.5rem;
   margin: 0;
-  padding: 0.5rem 0.75rem;
+  padding: 0.55rem 0.8rem;
   border: 1px solid rgb(from var(--color-primary) r g b / 0.24);
   border-radius: 999px;
   color: var(--color-on-surface);
-  background: var(--color-surface-container-lowest);
-  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.28);
+  background: linear-gradient(
+    135deg,
+    rgb(from var(--color-surface-container-lowest) r g b / 0.98),
+    rgb(from var(--color-surface-container-low) r g b / 0.96)
+  );
+  box-shadow:
+    0 0.65rem 1.8rem rgb(0 0 0 / 0.32),
+    inset 0 1px rgb(255 255 255 / 0.05);
   font-size: 0.78rem;
   font-weight: 700;
   line-height: 1.2;
   text-align: center;
+  transform-origin: top right;
+  backdrop-filter: blur(12px);
+}
+
+.app-shell-header__update-status--success {
+  border-color: rgb(from var(--color-success) r g b / 0.38);
+  box-shadow:
+    0 0.65rem 1.8rem rgb(0 0 0 / 0.32),
+    0 0 1.4rem rgb(from var(--color-success) r g b / 0.1),
+    inset 0 1px rgb(255 255 255 / 0.07);
+}
+
+.app-shell-header__update-status-icon {
+  display: grid;
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: none;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--color-surface);
+  background: var(--color-success);
+  box-shadow: 0 0 0.9rem rgb(from var(--color-success) r g b / 0.42);
+  animation: app-shell-status-icon-pop 420ms cubic-bezier(0.2, 1.55, 0.4, 1)
+    both;
+}
+
+.update-status-enter-active {
+  transition:
+    opacity 180ms ease-out,
+    transform 360ms cubic-bezier(0.2, 1.35, 0.4, 1);
+}
+
+.update-status-leave-active {
+  transition:
+    opacity 180ms ease-in,
+    transform 220ms ease-in,
+    filter 180ms ease-in;
+}
+
+.update-status-enter-from {
+  opacity: 0;
+  transform: translateY(-0.55rem) scale(0.88);
+}
+
+.update-status-leave-to {
+  opacity: 0;
+  filter: blur(2px);
+  transform: translateY(-0.3rem) scale(0.96);
 }
 
 .app-shell-header__locale {
@@ -325,9 +414,31 @@ function resolveBackTarget(backTo: string): string | null {
   }
 }
 
+@keyframes app-shell-status-icon-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) rotate(-24deg);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.15) rotate(4deg);
+  }
+
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .app-shell-header__update-icon--checking {
+  .app-shell-header__update-icon--checking,
+  .app-shell-header__update-status-icon {
     animation: none;
+  }
+
+  .update-status-enter-active,
+  .update-status-leave-active {
+    transition: none;
   }
 }
 </style>

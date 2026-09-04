@@ -1,6 +1,14 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { reactive } from 'vue'
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type Mock
+} from 'vitest'
 
 import Header from '@/ui/app-shell/Header.vue'
 import { createAppI18n } from '@/ui/i18n'
@@ -55,6 +63,10 @@ describe('Header', () => {
     } as unknown as ReturnType<typeof useRouter>)
   })
 
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   function mountHeader() {
     const i18n = createAppI18n('en')
 
@@ -87,7 +99,8 @@ describe('Header', () => {
     expect(window.localStorage.getItem('progress:locale')).toBe('pl')
   })
 
-  it('checks for a fresh app version and reassures the athlete when they are current', async () => {
+  it('briefly reassures the athlete when they already have the freshest app version', async () => {
+    vi.useFakeTimers()
     const wrapper = mountHeader()
     const updateButton = wrapper.get('[data-testid="shell-update-button"]')
 
@@ -97,6 +110,19 @@ describe('Header', () => {
     expect(checkForPwaUpdate).toHaveBeenCalledTimes(1)
     expect(wrapper.get('[role="status"]').text()).toBe('You’re up to date')
     expect(updateButton.attributes('aria-label')).toBe('Check for updates')
+
+    await vi.advanceTimersByTimeAsync(2_999)
+    expect(wrapper.get('[role="status"]').text()).toBe('You’re up to date')
+
+    await vi.advanceTimersByTimeAsync(1)
+    await flushPromises()
+    expect(wrapper.get('[role="status"]').classes()).toContain(
+      'update-status-leave-active'
+    )
+
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
   })
 
   it('keeps another update check from starting while the first one is underway', async () => {
