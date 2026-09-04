@@ -93,7 +93,16 @@ const { t } = useI18n({
         :key="amount"
         class="exercise-card__add"
         type="button"
-        :aria-label="t('card.addReps', { count: amount, name: exercise.name })"
+        :aria-label="
+          t(
+            'card.addReps',
+            {
+              count: amount,
+              name: exercise.name
+            },
+            amount
+          )
+        "
         @click="emit('add', amount)"
       >
         <Zap v-if="amount === 10" aria-hidden="true" :size="15" />

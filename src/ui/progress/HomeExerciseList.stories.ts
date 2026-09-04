@@ -65,7 +65,9 @@ const meta: Meta<HomeExerciseListStoryArgs> = {
       })
 
       provide(routerKey, router)
-      provide(routeLocationKey, router.currentRoute as never)
+      // RouterLink expects the installed router's unwrapped reactive route, not
+      // the currentRoute ref exposed by the router instance.
+      provide(routeLocationKey, router.currentRoute.value as never)
 
       return { args }
     },

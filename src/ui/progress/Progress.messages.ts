@@ -33,7 +33,8 @@ export const PROGRESS_MESSAGES = {
       yesterday: 'Wczoraj: {count}',
       previousMax: 'Poprzedni maks.: {count}',
       progress: 'Postęp dla {name}: {current} z {goal}',
-      addReps: 'Dodaj {count} powtórzeń do {name}',
+      addReps:
+        'Dodaj {count} powtórzenie do {name} | Dodaj {count} powtórzeń do {name}',
       edit: 'Edytuj {name}'
     },
     calendar: {
@@ -104,7 +105,7 @@ export const PROGRESS_MESSAGES = {
       yesterday: 'Yesterday: {count}',
       previousMax: 'Previous max: {count}',
       progress: 'Progress for {name}: {current} of {goal}',
-      addReps: 'Add {count} reps to {name}',
+      addReps: 'Add {count} rep to {name} | Add {count} reps to {name}',
       edit: 'Edit {name}'
     },
     calendar: {
