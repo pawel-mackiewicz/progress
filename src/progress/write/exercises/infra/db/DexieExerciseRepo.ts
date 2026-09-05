@@ -11,14 +11,7 @@ export class DexieExerciseRepo implements ExerciseRepoPort {
   public async findById(id: string): Promise<Exercise | undefined> {
     const exercise = await this.database.exercises.get(id)
 
-    return exercise
-      ? Exercise.restore({
-          ...exercise,
-          createdAt: new Date(exercise.createdAt),
-          updatedAt: new Date(exercise.updatedAt),
-          archivedAt: exercise.archivedAt ? new Date(exercise.archivedAt) : null
-        })
-      : undefined
+    return exercise ? Exercise.restore(exercise) : undefined
   }
 
   public async existsActiveByName(
@@ -37,13 +30,6 @@ export class DexieExerciseRepo implements ExerciseRepoPort {
   }
 
   public async save(exercise: Exercise): Promise<void> {
-    await this.database.exercises.put({
-      id: exercise.id,
-      name: exercise.name,
-      dailyGoal: exercise.dailyGoal,
-      createdAt: exercise.createdAt.toISOString(),
-      updatedAt: exercise.updatedAt.toISOString(),
-      archivedAt: exercise.archivedAt?.toISOString() ?? null
-    })
+    await this.database.exercises.put(exercise.toSnapshot())
   }
 }

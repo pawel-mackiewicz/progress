@@ -1,14 +1,8 @@
 import type { LocalDayKey } from '@/progress/date'
 import type { RepIncrement } from '@/progress/types'
+import type { ExerciseSnapshot } from '@/progress/write/exercises/domain/Exercise'
 
-export type PersistedExercise = {
-  id: string
-  name: string
-  dailyGoal: number
-  createdAt: string
-  updatedAt: string
-  archivedAt: string | null
-}
+export type PersistedExercise = ExerciseSnapshot
 
 export type PersistedRepLog = {
   id: string

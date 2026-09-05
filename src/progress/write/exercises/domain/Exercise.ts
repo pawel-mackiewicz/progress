@@ -5,15 +5,14 @@ export type RegisterExerciseInput = {
 
 export type UpdateExerciseInput = RegisterExerciseInput
 
-export type RestoreExerciseInput = {
+export type ExerciseSnapshot = {
   id: string
   name: string
   dailyGoal: number
-  createdAt: Date
-  updatedAt: Date
-  archivedAt: Date | null
+  createdAt: string
+  updatedAt: string
+  archivedAt: string | null
 }
-
 export class DuplicateExerciseNameError extends Error {}
 export class ExerciseNotFoundError extends Error {}
 
@@ -22,14 +21,22 @@ export function normalizeExerciseName(name: string) {
 }
 
 export class Exercise {
+  private readonly _createdAt: Date
+  private readonly _updatedAt: Date
+  private readonly _archivedAt: Date | null
+
   private constructor(
     public readonly id: string,
     public readonly name: string,
     public readonly dailyGoal: number,
-    private readonly _createdAt: Date,
-    private readonly _updatedAt: Date,
-    private readonly _archivedAt: Date | null
-  ) {}
+    createdAt: Date,
+    updatedAt: Date,
+    archivedAt: Date | null
+  ) {
+    this._createdAt = new Date(createdAt.getTime())
+    this._updatedAt = new Date(updatedAt.getTime())
+    this._archivedAt = archivedAt ? new Date(archivedAt.getTime()) : null
+  }
 
   public static register(
     input: RegisterExerciseInput,
@@ -39,15 +46,26 @@ export class Exercise {
     return new Exercise(id, input.name.trim(), input.dailyGoal, now, now, null)
   }
 
-  public static restore(input: RestoreExerciseInput): Exercise {
+  public static restore(snapshot: ExerciseSnapshot): Exercise {
     return new Exercise(
-      input.id,
-      input.name,
-      input.dailyGoal,
-      input.createdAt,
-      input.updatedAt,
-      input.archivedAt
+      snapshot.id,
+      snapshot.name,
+      snapshot.dailyGoal,
+      new Date(snapshot.createdAt),
+      new Date(snapshot.updatedAt),
+      snapshot.archivedAt ? new Date(snapshot.archivedAt) : null
     )
+  }
+
+  public toSnapshot(): ExerciseSnapshot {
+    return {
+      id: this.id,
+      name: this.name,
+      dailyGoal: this.dailyGoal,
+      createdAt: this.createdAt.toISOString(),
+      updatedAt: this.updatedAt.toISOString(),
+      archivedAt: this.archivedAt?.toISOString() ?? null
+    }
   }
 
   public updateDetails(input: UpdateExerciseInput, now: Date): Exercise {

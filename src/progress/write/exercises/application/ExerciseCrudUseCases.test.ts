@@ -68,9 +68,9 @@ describe('an athlete maintaining their exercise plan', () => {
         id,
         name,
         dailyGoal: 40,
-        createdAt: creationTime,
-        updatedAt: creationTime,
-        archivedAt
+        createdAt: creationTime.toISOString(),
+        updatedAt: creationTime.toISOString(),
+        archivedAt: archivedAt?.toISOString() ?? null
       })
     )
   }

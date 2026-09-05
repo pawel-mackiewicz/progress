@@ -18,7 +18,7 @@ describe('an exercise stored on the athlete’s device', () => {
     await database.delete()
   })
 
-  it('translates the domain exercise into the existing persisted row', async () => {
+  it('persists the exercise snapshot as the device row', async () => {
     const exercise = Exercise.register(
       { name: 'Push-ups', dailyGoal: 40 },
       'exercise-1',

@@ -21,6 +21,26 @@ describe('an exercise entering the athlete’s training plan', () => {
     expect(exercise.isArchived()).toBe(false)
   })
 
+  it('provides an isolated snapshot of its persisted training state', () => {
+    const creationTime = new Date('2026-08-24T08:00:00.000Z')
+    const exercise = Exercise.register(
+      { name: 'Push-ups', dailyGoal: 40 },
+      'exercise-1',
+      creationTime
+    )
+
+    creationTime.setUTCFullYear(2030)
+
+    expect(exercise.toSnapshot()).toEqual({
+      id: 'exercise-1',
+      name: 'Push-ups',
+      dailyGoal: 40,
+      createdAt: '2026-08-24T08:00:00.000Z',
+      updatedAt: '2026-08-24T08:00:00.000Z',
+      archivedAt: null
+    })
+  })
+
   it('keeps its identity and history while its training details change', () => {
     const creationTime = new Date('2026-08-24T08:00:00.000Z')
     const updateTime = new Date('2026-08-25T09:30:00.000Z')

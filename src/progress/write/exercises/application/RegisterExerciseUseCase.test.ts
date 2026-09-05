@@ -58,9 +58,9 @@ describe('an athlete registering an exercise', () => {
         id: 'existing-exercise',
         name,
         dailyGoal: 20,
-        createdAt: now,
-        updatedAt: now,
-        archivedAt
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+        archivedAt: archivedAt?.toISOString() ?? null
       })
     )
   }
