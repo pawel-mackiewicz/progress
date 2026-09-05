@@ -4,8 +4,12 @@ import { ProgressDatabase } from '@/db'
 import { DexieProgressCommands } from '@/progress/commands'
 import type { LocalDayKey } from '@/progress/date'
 import { DexieProgressQueries } from '@/progress/queries'
+import { ArchiveExerciseUseCase } from '@/progress/write/exercises/application/ArchiveExerciseUseCase'
 import { RegisterExerciseUseCase } from '@/progress/write/exercises/application/RegisterExerciseUseCase'
+import { RestoreExerciseUseCase } from '@/progress/write/exercises/application/RestoreExerciseUseCase'
+import { UpdateExerciseUseCase } from '@/progress/write/exercises/application/UpdateExerciseUseCase'
 import { DuplicateExerciseNameError } from '@/progress/write/exercises/domain/Exercise'
+import { DexieDailyCompletion } from '@/progress/write/exercises/infra/db/DexieDailyCompletion'
 import { DexieExerciseRepo } from '@/progress/write/exercises/infra/db/DexieExerciseRepo'
 import { DexieUnitOfWork } from '@/progress/write/shared/infra/db/DexieUnitOfWork'
 
@@ -29,17 +33,41 @@ describe('a training day saved on the athlete’s device', () => {
   let commands: DexieProgressCommands
   let queries: DexieProgressQueries
   let registerExercise: RegisterExerciseUseCase
+  let updateExercise: UpdateExerciseUseCase
+  let archiveExercise: ArchiveExerciseUseCase
+  let restoreExercise: RestoreExerciseUseCase
   let idGenerator: StoryIdGenerator
 
   beforeEach(() => {
     databaseName = `progress-story-${crypto.randomUUID()}`
     database = new ProgressDatabase(databaseName)
     idGenerator = new StoryIdGenerator()
+    const unitOfWork = new DexieUnitOfWork(database)
+    const exerciseRepo = new DexieExerciseRepo(database)
+    const clock = { now: () => fixedNow }
     registerExercise = new RegisterExerciseUseCase(
-      new DexieUnitOfWork(database),
-      new DexieExerciseRepo(database),
+      unitOfWork,
+      exerciseRepo,
       idGenerator,
-      { now: () => fixedNow }
+      clock
+    )
+    const dailyCompletion = new DexieDailyCompletion(database, clock)
+    updateExercise = new UpdateExerciseUseCase(
+      unitOfWork,
+      exerciseRepo,
+      dailyCompletion,
+      clock
+    )
+    archiveExercise = new ArchiveExerciseUseCase(
+      unitOfWork,
+      exerciseRepo,
+      dailyCompletion,
+      clock
+    )
+    restoreExercise = new RestoreExerciseUseCase(
+      unitOfWork,
+      exerciseRepo,
+      clock
     )
     commands = new DexieProgressCommands(
       database,
@@ -150,11 +178,12 @@ describe('a training day saved on the athlete’s device', () => {
     const pushUps = await givenAnExercise('Push-ups', 5)
     await whenTheAthleteAdds(pushUps.id, 5)
 
-    await commands.updateExercise(
-      pushUps.id,
-      { name: 'Push-ups', dailyGoal: 50 },
-      today
-    )
+    await updateExercise.handle({
+      id: pushUps.id,
+      name: 'Push-ups',
+      dailyGoal: 50,
+      day: today
+    })
     await givenAnExercise('Pull-ups', 20)
     const changedDay = await readDashboard()
 
@@ -165,20 +194,50 @@ describe('a training day saved on the athlete’s device', () => {
     expect(changedDay.completedDays).toContain(today)
   })
 
+  it('awards today when a corrected goal matches the work already done', async () => {
+    const pushUps = await givenAnExercise('Push-ups', 10)
+    await whenTheAthleteAdds(pushUps.id, 5)
+
+    await updateExercise.handle({
+      id: pushUps.id,
+      name: 'Push-ups',
+      dailyGoal: 5,
+      day: today
+    })
+
+    expect(await readDashboard()).toMatchObject({
+      isDayComplete: true,
+      completedDays: [today]
+    })
+  })
+
   it('hides an archived quest without throwing away its reps and restores it later', async () => {
     const pullUps = await givenAnExercise('Pull-ups', 10)
     await whenTheAthleteAdds(pullUps.id, 5)
 
-    await commands.archiveExercise(pullUps.id, today)
+    await archiveExercise.handle({ id: pullUps.id, day: today })
     const archivedDay = await readDashboard()
     expect(archivedDay.exercises).toHaveLength(0)
     expect(archivedDay.archivedExercises[0]?.name).toBe('Pull-ups')
 
-    await commands.restoreExercise(pullUps.id, today)
+    await restoreExercise.handle({ id: pullUps.id })
     const restoredDay = await readDashboard()
     expect(restoredDay.exercises[0]).toMatchObject({
       name: 'Pull-ups',
       completedReps: 5
+    })
+  })
+
+  it('awards today when archiving the only unfinished quest clears the plan', async () => {
+    const pushUps = await givenAnExercise('Push-ups', 5)
+    const pullUps = await givenAnExercise('Pull-ups', 5)
+    await whenTheAthleteAdds(pushUps.id, 5)
+
+    await archiveExercise.handle({ id: pullUps.id, day: today })
+
+    expect(await readDashboard()).toMatchObject({
+      isDayComplete: true,
+      completedDays: [today]
     })
   })
 

@@ -3,6 +3,8 @@ export type RegisterExerciseInput = {
   dailyGoal: number
 }
 
+export type UpdateExerciseInput = RegisterExerciseInput
+
 export type RestoreExerciseInput = {
   id: string
   name: string
@@ -13,6 +15,7 @@ export type RestoreExerciseInput = {
 }
 
 export class DuplicateExerciseNameError extends Error {}
+export class ExerciseNotFoundError extends Error {}
 
 export function normalizeExerciseName(name: string) {
   return name.trim().toLocaleLowerCase()
@@ -44,6 +47,39 @@ export class Exercise {
       input.createdAt,
       input.updatedAt,
       input.archivedAt
+    )
+  }
+
+  public updateDetails(input: UpdateExerciseInput, now: Date): Exercise {
+    return new Exercise(
+      this.id,
+      input.name.trim(),
+      input.dailyGoal,
+      this._createdAt,
+      now,
+      this._archivedAt
+    )
+  }
+
+  public archive(now: Date): Exercise {
+    return new Exercise(
+      this.id,
+      this.name,
+      this.dailyGoal,
+      this._createdAt,
+      now,
+      now
+    )
+  }
+
+  public reactivate(now: Date): Exercise {
+    return new Exercise(
+      this.id,
+      this.name,
+      this.dailyGoal,
+      this._createdAt,
+      now,
+      null
     )
   }
 

@@ -9,7 +9,7 @@ import { PROGRESS_MESSAGES } from '@/ui/progress/Progress.messages'
 import { useRoute, useRouter } from '@/ui/router/runtime'
 import { DuplicateExerciseNameError } from '@/progress/write/exercises/domain/Exercise'
 
-const { commands, queries, useCases } = useAppServices()
+const { queries, useCases } = useAppServices()
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n({
@@ -56,7 +56,11 @@ async function saveExercise() {
 
   try {
     if (exerciseId.value) {
-      await commands.updateExercise(exerciseId.value, draft, toLocalDayKey())
+      await useCases.updateExercise.handle({
+        id: exerciseId.value,
+        ...draft,
+        day: toLocalDayKey()
+      })
     } else {
       await useCases.registerExercise.handle(draft)
     }
@@ -84,7 +88,10 @@ async function archiveExercise() {
   formError.value = ''
 
   try {
-    await commands.archiveExercise(exerciseId.value, toLocalDayKey())
+    await useCases.archiveExercise.handle({
+      id: exerciseId.value,
+      day: toLocalDayKey()
+    })
     await router.push('/')
   } catch {
     formError.value = t('form.saveError')

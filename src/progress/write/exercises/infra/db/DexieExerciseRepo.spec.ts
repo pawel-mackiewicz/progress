@@ -60,4 +60,36 @@ describe('an exercise stored on the athlete’s device', () => {
     expect(await repository.existsActiveByName('  push-ups  ')).toBe(true)
     expect(await repository.existsActiveByName('squats')).toBe(false)
   })
+
+  it('rehydrates and replaces the same exercise as its plan changes', async () => {
+    await database.exercises.add({
+      id: 'push-ups',
+      name: 'Push-ups',
+      dailyGoal: 40,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+      archivedAt: null
+    })
+    const exercise = await repository.findById('push-ups')
+
+    if (!exercise) {
+      throw new Error('The exercise was not available for the story.')
+    }
+
+    const updateTime = new Date('2026-08-25T09:30:00.000Z')
+    await repository.save(
+      exercise.updateDetails(
+        { name: 'Slow push-ups', dailyGoal: 20 },
+        updateTime
+      )
+    )
+
+    expect(await database.exercises.count()).toBe(1)
+    expect(await database.exercises.get('push-ups')).toMatchObject({
+      name: 'Slow push-ups',
+      dailyGoal: 20,
+      createdAt: now.toISOString(),
+      updatedAt: updateTime.toISOString()
+    })
+  })
 })

@@ -26,7 +26,7 @@ describe('today’s arcade training dashboard', () => {
   const today = toLocalDayKey()
   let queries: ProgressQueries
   let commands: ProgressCommands
-  let registerExercise: AppUseCases['registerExercise']
+  let useCases: AppUseCases
 
   function snapshot(
     overrides: Partial<DashboardSnapshot> = {}
@@ -68,17 +68,17 @@ describe('today’s arcade training dashboard', () => {
     vi.mocked(useRouter).mockReturnValue({
       push: vi.fn()
     } as unknown as ReturnType<typeof useRouter>)
-    registerExercise = {
-      handle: vi.fn().mockResolvedValue(undefined)
+    useCases = {
+      registerExercise: { handle: vi.fn().mockResolvedValue(undefined) },
+      updateExercise: { handle: vi.fn().mockResolvedValue(undefined) },
+      archiveExercise: { handle: vi.fn().mockResolvedValue(undefined) },
+      restoreExercise: { handle: vi.fn().mockResolvedValue(undefined) }
     }
     queries = {
       getExercise: vi.fn(),
       getDashboard: vi.fn().mockResolvedValue(snapshot())
     }
     commands = {
-      updateExercise: vi.fn(),
-      archiveExercise: vi.fn(),
-      restoreExercise: vi.fn(),
       recordReps: vi.fn(),
       undoRepLog: vi.fn()
     }
@@ -91,7 +91,7 @@ describe('today’s arcade training dashboard', () => {
         provide: createAppServicesProvides({
           queries,
           commands,
-          useCases: { registerExercise }
+          useCases
         })
       }
     })
@@ -156,6 +156,30 @@ describe('today’s arcade training dashboard', () => {
       'Add exercise'
     )
     expect(dashboard.text()).toContain('Victory calendar')
+  })
+
+  it('restores an archived quest and reloads the training plan', async () => {
+    const squats = exercise({
+      id: 'squats',
+      name: 'Squats',
+      archivedAt: '2026-08-25T08:00:00.000Z'
+    })
+    vi.mocked(queries.getDashboard)
+      .mockResolvedValueOnce(snapshot({ archivedExercises: [squats] }))
+      .mockResolvedValueOnce(
+        snapshot({ exercises: [{ ...squats, archivedAt: null }] })
+      )
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    await dashboard.get('button[aria-label="Restore Squats"]').trigger('click')
+    await flushPromises()
+
+    expect(useCases.restoreExercise.handle).toHaveBeenCalledWith({
+      id: 'squats'
+    })
+    expect(queries.getDashboard).toHaveBeenCalledTimes(2)
+    expect(dashboard.text()).toContain('Squats')
   })
 
   it('shows the shield balance and the day it protected', async () => {

@@ -4,7 +4,8 @@ import {
 } from '@/progress/write/exercises/domain/Exercise'
 
 export interface ExerciseRepoPort {
-  existsActiveByName(name: string): Promise<boolean>
+  findById(id: string): Promise<Exercise | undefined>
+  existsActiveByName(name: string, ignoredId?: string): Promise<boolean>
   save(exercise: Exercise): Promise<void>
 }
 
@@ -17,13 +18,23 @@ export class FakeExerciseRepo implements ExerciseRepoPort {
     this.existingExercises.push(exercise)
   }
 
-  public async existsActiveByName(name: string): Promise<boolean> {
+  public async findById(id: string): Promise<Exercise | undefined> {
+    return [...this.existingExercises, ...this.savedExercises]
+      .toReversed()
+      .find((exercise) => exercise.id === id)
+  }
+
+  public async existsActiveByName(
+    name: string,
+    ignoredId?: string
+  ): Promise<boolean> {
     this.nameChecks.push(name)
     const normalizedName = normalizeExerciseName(name)
 
     return [...this.existingExercises, ...this.savedExercises].some(
       (exercise) =>
         !exercise.isArchived() &&
+        exercise.id !== ignoredId &&
         normalizeExerciseName(exercise.name) === normalizedName
     )
   }

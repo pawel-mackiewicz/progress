@@ -27,8 +27,6 @@ export type DailyCompletion = {
   triggerRepLogId: string | null
 }
 
-export type ExerciseDraft = Pick<Exercise, 'name' | 'dailyGoal'>
-
 export type DashboardExercise = Exercise & {
   completedReps: number
   remainingReps: number
@@ -64,13 +62,6 @@ export interface ProgressQueries {
 }
 
 export interface ProgressCommands {
-  updateExercise(
-    id: string,
-    draft: ExerciseDraft,
-    day: LocalDayKey
-  ): Promise<Exercise>
-  archiveExercise(id: string, day: LocalDayKey): Promise<void>
-  restoreExercise(id: string, day: LocalDayKey): Promise<void>
   recordReps(
     exerciseId: string,
     amount: RepIncrement,

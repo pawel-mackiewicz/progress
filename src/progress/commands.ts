@@ -1,19 +1,13 @@
 import type { ProgressDatabase } from '@/db'
 import type { LocalDayKey } from '@/progress/date'
 import type {
-  Exercise,
-  ExerciseDraft,
   ProgressCommands,
   RecordRepsResult,
   RepIncrement,
   RepLog
 } from '@/progress/types'
-import {
-  DuplicateExerciseNameError,
-  normalizeExerciseName
-} from '@/progress/write/exercises/domain/Exercise'
+import { ExerciseNotFoundError } from '@/progress/write/exercises/domain/Exercise'
 
-export class ExerciseNotFoundError extends Error {}
 export class ExerciseArchivedError extends Error {}
 
 export class DexieProgressCommands implements ProgressCommands {
@@ -22,67 +16,6 @@ export class DexieProgressCommands implements ProgressCommands {
     private readonly now: () => Date = () => new Date(),
     private readonly createId: () => string = () => crypto.randomUUID()
   ) {}
-
-  async updateExercise(id: string, draft: ExerciseDraft, day: LocalDayKey) {
-    return this.database.transaction(
-      'rw',
-      [
-        this.database.exercises,
-        this.database.repLogs,
-        this.database.dailyCompletions
-      ],
-      async () => {
-        const exercise = await this.requireExercise(id)
-        await this.assertUniqueActiveName(draft.name, id)
-        const updatedExercise: Exercise = {
-          ...exercise,
-          name: draft.name.trim(),
-          dailyGoal: draft.dailyGoal,
-          updatedAt: this.now().toISOString()
-        }
-
-        await this.database.exercises.put(updatedExercise)
-        await this.awardDayIfComplete(day, null)
-
-        return updatedExercise
-      }
-    )
-  }
-
-  async archiveExercise(id: string, day: LocalDayKey) {
-    await this.database.transaction(
-      'rw',
-      [
-        this.database.exercises,
-        this.database.repLogs,
-        this.database.dailyCompletions
-      ],
-      async () => {
-        const exercise = await this.requireExercise(id)
-        const timestamp = this.now().toISOString()
-
-        await this.database.exercises.put({
-          ...exercise,
-          archivedAt: timestamp,
-          updatedAt: timestamp
-        })
-        await this.awardDayIfComplete(day, null)
-      }
-    )
-  }
-
-  async restoreExercise(id: string, _day: LocalDayKey) {
-    void _day
-    await this.database.transaction('rw', this.database.exercises, async () => {
-      const exercise = await this.requireExercise(id)
-      await this.assertUniqueActiveName(exercise.name, id)
-      await this.database.exercises.put({
-        ...exercise,
-        archivedAt: null,
-        updatedAt: this.now().toISOString()
-      })
-    })
-  }
 
   async recordReps(
     exerciseId: string,
@@ -156,23 +89,6 @@ export class DexieProgressCommands implements ProgressCommands {
         await this.database.dailyCompletions.delete(repLog.day)
       }
     )
-  }
-
-  private async assertUniqueActiveName(name: string, ignoredId?: string) {
-    const normalizedName = normalizeExerciseName(name)
-    const exercises = await this.database.exercises.toArray()
-    const duplicate = exercises.some(
-      (exercise) =>
-        !exercise.archivedAt &&
-        exercise.id !== ignoredId &&
-        normalizeExerciseName(exercise.name) === normalizedName
-    )
-
-    if (duplicate) {
-      throw new DuplicateExerciseNameError(
-        'An active exercise with this name already exists.'
-      )
-    }
   }
 
   private async requireExercise(id: string) {

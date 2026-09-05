@@ -14,7 +14,7 @@ import HomeHero from '@/ui/progress/HomeHero.vue'
 import { PROGRESS_MESSAGES } from '@/ui/progress/Progress.messages'
 import { RouterLink, useRouter } from '@/ui/router/runtime'
 
-const { commands, queries } = useAppServices()
+const { commands, queries, useCases } = useAppServices()
 const router = useRouter()
 const { t } = useI18n({
   useScope: 'local',
@@ -184,7 +184,7 @@ async function restoreExercise(exerciseId: string) {
   actionError.value = false
 
   try {
-    await commands.restoreExercise(exerciseId, today.value)
+    await useCases.restoreExercise.handle({ id: exerciseId })
     await loadSnapshot()
   } catch {
     actionError.value = true

@@ -22,23 +22,23 @@ describe('the exercise mission form', () => {
   let route: { params: Record<string, string> }
   let queries: ProgressQueries
   let commands: ProgressCommands
-  let registerExercise: AppUseCases['registerExercise']
+  let useCases: AppUseCases
   let push: Mock
 
   beforeEach(() => {
     route = reactive({ params: {} })
     push = vi.fn().mockResolvedValue(undefined)
-    registerExercise = {
-      handle: vi.fn().mockResolvedValue(undefined)
+    useCases = {
+      registerExercise: { handle: vi.fn().mockResolvedValue(undefined) },
+      updateExercise: { handle: vi.fn().mockResolvedValue(undefined) },
+      archiveExercise: { handle: vi.fn().mockResolvedValue(undefined) },
+      restoreExercise: { handle: vi.fn().mockResolvedValue(undefined) }
     }
     queries = {
       getExercise: vi.fn().mockResolvedValue(undefined),
       getDashboard: vi.fn()
     }
     commands = {
-      updateExercise: vi.fn(),
-      archiveExercise: vi.fn(),
-      restoreExercise: vi.fn(),
       recordReps: vi.fn(),
       undoRepLog: vi.fn()
     }
@@ -58,7 +58,7 @@ describe('the exercise mission form', () => {
         provide: createAppServicesProvides({
           queries,
           commands,
-          useCases: { registerExercise }
+          useCases
         })
       }
     })
@@ -71,7 +71,7 @@ describe('the exercise mission form', () => {
 
     expect(form.text()).toContain('Enter an exercise name.')
     expect(form.text()).toContain('positive whole number')
-    expect(registerExercise.handle).not.toHaveBeenCalled()
+    expect(useCases.registerExercise.handle).not.toHaveBeenCalled()
   })
 
   it('turns a name and daily target into a new active quest', async () => {
@@ -83,9 +83,37 @@ describe('the exercise mission form', () => {
     await form.get('form').trigger('submit')
     await flushPromises()
 
-    expect(registerExercise.handle).toHaveBeenCalledWith({
+    expect(useCases.registerExercise.handle).toHaveBeenCalledWith({
       name: 'Push-ups',
       dailyGoal: 100
+    })
+    expect(push).toHaveBeenCalledWith('/')
+  })
+
+  it('saves the revised details of an existing quest', async () => {
+    route.params = { exerciseId: 'push-ups' }
+    vi.mocked(queries.getExercise).mockResolvedValue({
+      id: 'push-ups',
+      name: 'Push-ups',
+      dailyGoal: 40,
+      createdAt: '2026-08-24T08:00:00.000Z',
+      updatedAt: '2026-08-24T08:00:00.000Z',
+      archivedAt: null
+    })
+    const form = openForm()
+    await flushPromises()
+
+    const inputs = form.findAll('input')
+    await inputs[0]?.setValue('Slow push-ups')
+    await inputs[1]?.setValue('25')
+    await form.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(useCases.updateExercise.handle).toHaveBeenCalledWith({
+      id: 'push-ups',
+      name: 'Slow push-ups',
+      dailyGoal: 25,
+      day: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
     })
     expect(push).toHaveBeenCalledWith('/')
   })
@@ -118,10 +146,10 @@ describe('the exercise mission form', () => {
     expect(confirm).toHaveBeenCalledWith(
       'Archive “Pull-ups”? Its history will stay safe.'
     )
-    expect(commands.archiveExercise).toHaveBeenCalledWith(
-      'pull-ups',
-      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
-    )
+    expect(useCases.archiveExercise.handle).toHaveBeenCalledWith({
+      id: 'pull-ups',
+      day: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
+    })
     expect(push).toHaveBeenCalledWith('/')
   })
 })
