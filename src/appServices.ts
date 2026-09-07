@@ -12,6 +12,7 @@ import type { RestoreExerciseCommand } from '@/progress/write/exercises/applicat
 import type { UpdateExerciseCommand } from '@/progress/write/exercises/application/requests/UpdateExerciseCommand'
 import { DexieDailyCompletion } from '@/progress/write/exercises/infra/db/DexieDailyCompletion'
 import { DexieExerciseRepo } from '@/progress/write/exercises/infra/db/DexieExerciseRepo'
+import { DexieTrainingDayRepo } from '@/progress/write/exercises/infra/db/DexieTrainingDayRepo'
 import type { UseCase } from '@/progress/write/shared/UseCase'
 import { IdGenerator } from '@/progress/write/shared/infra/IdGenerator'
 import { SystemClock } from '@/progress/write/shared/infra/SystemClock'
@@ -34,6 +35,7 @@ export type AppServices = {
 export function createAppServices(database: ProgressDatabase): AppServices {
   const unitOfWork = new DexieUnitOfWork(database)
   const exerciseRepo = new DexieExerciseRepo(database)
+  const trainingDayRepo = new DexieTrainingDayRepo(database)
   const idGenerator = new IdGenerator()
   const clock = new SystemClock()
   const dailyCompletion = new DexieDailyCompletion(database, clock)
@@ -46,6 +48,7 @@ export function createAppServices(database: ProgressDatabase): AppServices {
       registerExercise: new RegisterExerciseUseCase(
         unitOfWork,
         exerciseRepo,
+        trainingDayRepo,
         idGenerator,
         clock
       ),

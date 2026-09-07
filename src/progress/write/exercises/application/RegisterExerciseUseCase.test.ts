@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { FakeExerciseRepo } from '@/progress/write/exercises/application/ports/ExerciseRepoPort'
+import { FakeTrainingDayRepo } from '@/progress/write/exercises/application/ports/TrainingDayRepoPort'
 import { RegisterExerciseUseCase } from '@/progress/write/exercises/application/RegisterExerciseUseCase'
+import type { LocalDayKey } from '@/progress/date'
 import {
   DuplicateExerciseNameError,
   Exercise
 } from '@/progress/write/exercises/domain/Exercise'
-import type { ClockPort } from '@/progress/write/shared/ClockPort'
+import { RepLog } from '@/progress/write/exercises/domain/RepLog'
+import { TrainingDay } from '@/progress/write/exercises/domain/TrainingDay'
 import type { IdGeneratorPort } from '@/progress/write/shared/IdGeneratorPort'
 import type { UnitOfWork } from '@/progress/write/shared/UnitOfWork'
 
@@ -28,22 +31,37 @@ class StoryIdGenerator implements IdGeneratorPort {
   }
 }
 
+class StoryClock {
+  public readings = 0
+
+  public constructor(private readonly currentTime: Date) {}
+
+  public now(): Date {
+    this.readings += 1
+    return new Date(this.currentTime)
+  }
+}
+
 describe('an athlete registering an exercise', () => {
+  const today = '2026-08-24' as const
   const now = new Date('2026-08-24T08:00:00.000Z')
   let unitOfWork: StoryUnitOfWork
   let exerciseRepo: FakeExerciseRepo
+  let trainingDayRepo: FakeTrainingDayRepo
   let idGenerator: StoryIdGenerator
-  let clock: ClockPort
+  let clock: StoryClock
   let useCase: RegisterExerciseUseCase
 
   beforeEach(() => {
     unitOfWork = new StoryUnitOfWork()
     exerciseRepo = new FakeExerciseRepo()
+    trainingDayRepo = new FakeTrainingDayRepo()
     idGenerator = new StoryIdGenerator()
-    clock = { now: () => now }
+    clock = new StoryClock(now)
     useCase = new RegisterExerciseUseCase(
       unitOfWork,
       exerciseRepo,
+      trainingDayRepo,
       idGenerator,
       clock
     )
@@ -51,18 +69,34 @@ describe('an athlete registering an exercise', () => {
 
   function givenAnExerciseWithThisName(
     name: string,
-    archivedAt: Date | null = null
+    archivedAt: Date | null = null,
+    id = 'existing-exercise'
   ) {
-    exerciseRepo.seed(
-      Exercise.restore({
-        id: 'existing-exercise',
-        name,
-        dailyGoal: 20,
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString(),
-        archivedAt: archivedAt?.toISOString() ?? null
-      })
-    )
+    const exercise = Exercise.restore({
+      id,
+      name,
+      dailyGoal: 20,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+      archivedAt: archivedAt?.toISOString() ?? null
+    })
+    exerciseRepo.seed(exercise)
+    return exercise
+  }
+
+  function givenATrainingDay(
+    day: LocalDayKey,
+    exercises: Exercise[],
+    status: 'OPEN' | 'FINALIZED' = 'OPEN',
+    repLogs: RepLog[] = []
+  ) {
+    let trainingDay = TrainingDay.open(day, exercises, repLogs)
+
+    if (status === 'FINALIZED') {
+      trainingDay = trainingDay.finalize()
+    }
+
+    trainingDayRepo.seed(trainingDay)
   }
 
   async function whenTheyRegisterPushUps() {
@@ -82,6 +116,94 @@ describe('an athlete registering an exercise', () => {
     })
     expect(exerciseRepo.savedExercises[0]?.createdAt).toEqual(now)
     expect(idGenerator.generations).toBe(1)
+    expect(clock.readings).toBe(1)
+    expect(trainingDayRepo.lookupDays).toEqual([today])
+    expect(trainingDayRepo.savedTrainingDays[0]?.toSnapshot()).toEqual({
+      day: today,
+      status: 'OPEN',
+      exercises: [
+        {
+          exerciseId: 'generated-exercise-id',
+          name: 'Push-ups',
+          dailyGoal: 40
+        }
+      ]
+    })
+  })
+
+  it('adds the exercise to today without losing the athlete’s plan or reps', async () => {
+    const squats = givenAnExerciseWithThisName('Squats')
+    const morningSet = RepLog.restore({
+      id: 'morning-set',
+      exerciseId: squats.id,
+      day: today,
+      amount: 10,
+      createdAt: now.toISOString()
+    })
+    givenATrainingDay(today, [squats], 'OPEN', [morningSet])
+
+    await whenTheyRegisterPushUps()
+
+    const savedDay = trainingDayRepo.savedTrainingDays[0]
+    expect(savedDay?.exercises).toEqual([
+      { exerciseId: squats.id, name: 'Squats', dailyGoal: 20 },
+      {
+        exerciseId: 'generated-exercise-id',
+        name: 'Push-ups',
+        dailyGoal: 40
+      }
+    ])
+    expect(savedDay?.repLogs.map((repLog) => repLog.id)).toEqual([
+      'morning-set'
+    ])
+  })
+
+  it('closes yesterday and opens today with every active exercise', async () => {
+    const squats = givenAnExerciseWithThisName(
+      'Squats',
+      null,
+      'existing-squats'
+    )
+    givenAnExerciseWithThisName('Archived plank', now, 'archived-plank')
+    givenATrainingDay('2026-08-23', [squats])
+
+    await whenTheyRegisterPushUps()
+
+    expect(
+      trainingDayRepo.savedTrainingDays.map((trainingDay) =>
+        trainingDay.toSnapshot()
+      )
+    ).toEqual([
+      {
+        day: '2026-08-23',
+        status: 'FINALIZED',
+        exercises: [
+          { exerciseId: 'existing-squats', name: 'Squats', dailyGoal: 20 }
+        ]
+      },
+      {
+        day: today,
+        status: 'OPEN',
+        exercises: [
+          { exerciseId: 'existing-squats', name: 'Squats', dailyGoal: 20 },
+          {
+            exerciseId: 'generated-exercise-id',
+            name: 'Push-ups',
+            dailyGoal: 40
+          }
+        ]
+      }
+    ])
+  })
+
+  it('leaves an already closed previous day untouched', async () => {
+    const squats = givenAnExerciseWithThisName('Squats')
+    givenATrainingDay('2026-08-23', [squats], 'FINALIZED')
+
+    await whenTheyRegisterPushUps()
+
+    expect(trainingDayRepo.savedTrainingDays).toHaveLength(1)
+    expect(trainingDayRepo.savedTrainingDays[0]?.day).toBe(today)
   })
 
   it('rejects another active exercise with the same normalized name', async () => {
@@ -93,7 +215,10 @@ describe('an athlete registering an exercise', () => {
 
     expect(unitOfWork.executions).toBe(1)
     expect(exerciseRepo.savedExercises).toHaveLength(0)
+    expect(trainingDayRepo.savedTrainingDays).toHaveLength(0)
+    expect(trainingDayRepo.lookupDays).toHaveLength(0)
     expect(idGenerator.generations).toBe(0)
+    expect(clock.readings).toBe(0)
   })
 
   it('allows an archived exercise name to return to the active plan', async () => {
@@ -102,5 +227,12 @@ describe('an athlete registering an exercise', () => {
     await whenTheyRegisterPushUps()
 
     expect(exerciseRepo.savedExercises).toHaveLength(1)
+    expect(trainingDayRepo.savedTrainingDays[0]?.exercises).toEqual([
+      {
+        exerciseId: 'generated-exercise-id',
+        name: 'Push-ups',
+        dailyGoal: 40
+      }
+    ])
   })
 })

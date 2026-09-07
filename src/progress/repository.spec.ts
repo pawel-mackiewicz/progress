@@ -9,8 +9,10 @@ import { RegisterExerciseUseCase } from '@/progress/write/exercises/application/
 import { RestoreExerciseUseCase } from '@/progress/write/exercises/application/RestoreExerciseUseCase'
 import { UpdateExerciseUseCase } from '@/progress/write/exercises/application/UpdateExerciseUseCase'
 import { DuplicateExerciseNameError } from '@/progress/write/exercises/domain/Exercise'
+import { TrainingDayFinalizedError } from '@/progress/write/exercises/domain/TrainingDay'
 import { DexieDailyCompletion } from '@/progress/write/exercises/infra/db/DexieDailyCompletion'
 import { DexieExerciseRepo } from '@/progress/write/exercises/infra/db/DexieExerciseRepo'
+import { DexieTrainingDayRepo } from '@/progress/write/exercises/infra/db/DexieTrainingDayRepo'
 import { DexieUnitOfWork } from '@/progress/write/shared/infra/db/DexieUnitOfWork'
 
 class StoryIdGenerator {
@@ -44,10 +46,12 @@ describe('a training day saved on the athlete’s device', () => {
     idGenerator = new StoryIdGenerator()
     const unitOfWork = new DexieUnitOfWork(database)
     const exerciseRepo = new DexieExerciseRepo(database)
+    const trainingDayRepo = new DexieTrainingDayRepo(database)
     const clock = { now: () => fixedNow }
     registerExercise = new RegisterExerciseUseCase(
       unitOfWork,
       exerciseRepo,
+      trainingDayRepo,
       idGenerator,
       clock
     )
@@ -113,6 +117,67 @@ describe('a training day saved on the athlete’s device', () => {
       }))
     )
   }
+
+  it('closes the previous plan and persists today with every active exercise', async () => {
+    await database.exercises.add({
+      id: 'existing-squats',
+      name: 'Squats',
+      dailyGoal: 20,
+      createdAt: '2026-08-23T08:00:00.000Z',
+      updatedAt: '2026-08-23T08:00:00.000Z',
+      archivedAt: null
+    })
+    await database.trainingDays.add({
+      day: '2026-08-23',
+      status: 'OPEN',
+      exercises: [
+        { exerciseId: 'existing-squats', name: 'Squats', dailyGoal: 20 }
+      ]
+    })
+
+    await registerExercise.handle({ name: 'Push-ups', dailyGoal: 40 })
+
+    expect(await database.trainingDays.toArray()).toEqual([
+      {
+        day: '2026-08-23',
+        status: 'FINALIZED',
+        exercises: [
+          { exerciseId: 'existing-squats', name: 'Squats', dailyGoal: 20 }
+        ]
+      },
+      {
+        day: today,
+        status: 'OPEN',
+        exercises: [
+          { exerciseId: 'existing-squats', name: 'Squats', dailyGoal: 20 },
+          {
+            exerciseId: idGenerator.latestId,
+            name: 'Push-ups',
+            dailyGoal: 40
+          }
+        ]
+      }
+    ])
+  })
+
+  it('rolls registration back if the impossible finalized-today state appears', async () => {
+    await database.trainingDays.add({
+      day: today,
+      status: 'FINALIZED',
+      exercises: []
+    })
+
+    await expect(
+      registerExercise.handle({ name: 'Push-ups', dailyGoal: 40 })
+    ).rejects.toBeInstanceOf(TrainingDayFinalizedError)
+
+    expect(await database.exercises.count()).toBe(0)
+    expect(await database.trainingDays.get(today)).toEqual({
+      day: today,
+      status: 'FINALIZED',
+      exercises: []
+    })
+  })
 
   it('keeps every completed set after the app is reopened', async () => {
     const pushUps = await givenAnExercise('Push-ups', 40)

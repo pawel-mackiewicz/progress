@@ -92,4 +92,40 @@ describe('an exercise stored on the athlete’s device', () => {
       updatedAt: updateTime.toISOString()
     })
   })
+
+  it('loads the active plan in the order the athlete created it', async () => {
+    await database.exercises.bulkAdd([
+      {
+        id: 'second',
+        name: 'Squats',
+        dailyGoal: 20,
+        createdAt: '2026-08-24T09:00:00.000Z',
+        updatedAt: '2026-08-24T09:00:00.000Z',
+        archivedAt: null
+      },
+      {
+        id: 'archived',
+        name: 'Plank',
+        dailyGoal: 20,
+        createdAt: '2026-08-24T07:00:00.000Z',
+        updatedAt: '2026-08-24T09:00:00.000Z',
+        archivedAt: now.toISOString()
+      },
+      {
+        id: 'first',
+        name: 'Push-ups',
+        dailyGoal: 20,
+        createdAt: '2026-08-24T08:00:00.000Z',
+        updatedAt: '2026-08-24T08:00:00.000Z',
+        archivedAt: null
+      }
+    ])
+
+    const exercises = await repository.findAllActive()
+
+    expect(exercises.map((exercise) => exercise.id)).toEqual([
+      'first',
+      'second'
+    ])
+  })
 })
