@@ -1,8 +1,10 @@
 import type { ProgressDatabase } from '@/db'
 import { DexieProgressCommands } from '@/progress/commands'
 import { DexieProgressQueries } from '@/progress/queries'
+import type { LocalDayKey } from '@/progress/date'
 import type { ProgressCommands, ProgressQueries } from '@/progress/types'
 import { ArchiveExerciseUseCase } from '@/progress/write/exercises/application/ArchiveExerciseUseCase'
+import { PrepareTodayTrainingDayUseCase } from '@/progress/write/exercises/application/PrepareTodayTrainingDayUseCase'
 import { RegisterExerciseUseCase } from '@/progress/write/exercises/application/RegisterExerciseUseCase'
 import { RestoreExerciseUseCase } from '@/progress/write/exercises/application/RestoreExerciseUseCase'
 import { UpdateExerciseUseCase } from '@/progress/write/exercises/application/UpdateExerciseUseCase'
@@ -21,6 +23,7 @@ import { SystemClock } from '@/progress/write/shared/infra/SystemClock'
 import { DexieUnitOfWork } from '@/progress/write/shared/infra/db/DexieUnitOfWork'
 
 export type AppUseCases = {
+  readonly prepareTodayTrainingDay: UseCase<void, LocalDayKey>
   readonly registerExercise: UseCase<RegisterExerciseCommand>
   readonly updateExercise: UseCase<UpdateExerciseCommand>
   readonly archiveExercise: UseCase<ArchiveExerciseCommand>
@@ -49,12 +52,18 @@ export function createAppServices(database: ProgressDatabase): AppServices {
     queries: new DexieProgressQueries(database),
     commands: new DexieProgressCommands(database),
     useCases: {
-      registerExercise: new RegisterExerciseUseCase(
+      prepareTodayTrainingDay: new PrepareTodayTrainingDayUseCase(
         unitOfWork,
         exerciseRepo,
         trainingDayRepo,
         playerStatsRepo,
         dayOutcomeRepo,
+        clock
+      ),
+      registerExercise: new RegisterExerciseUseCase(
+        unitOfWork,
+        exerciseRepo,
+        trainingDayRepo,
         idGenerator,
         clock
       ),

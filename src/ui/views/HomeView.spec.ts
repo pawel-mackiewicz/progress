@@ -1,8 +1,8 @@
-import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AppUseCases } from '@/appServices'
-import { shiftLocalDay, toLocalDayKey } from '@/progress/date'
+import { shiftLocalDay, toLocalDayKey, type LocalDayKey } from '@/progress/date'
 import type {
   DashboardExercise,
   DashboardSnapshot,
@@ -14,6 +14,8 @@ import { createAppI18n } from '@/ui/i18n'
 import { useRouter } from '@/ui/router/runtime'
 import HomeView from '@/ui/views/HomeView.vue'
 
+enableAutoUnmount(afterEach)
+
 vi.mock('@/ui/router/runtime', () => ({
   RouterLink: {
     props: ['to'],
@@ -23,7 +25,7 @@ vi.mock('@/ui/router/runtime', () => ({
 }))
 
 describe('today’s arcade training dashboard', () => {
-  const today = toLocalDayKey()
+  const today = '2026-08-24' as const
   let queries: ProgressQueries
   let commands: ProgressCommands
   let useCases: AppUseCases
@@ -65,10 +67,15 @@ describe('today’s arcade training dashboard', () => {
   }
 
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    vi.setSystemTime(new Date(2026, 7, 24, 12))
     vi.mocked(useRouter).mockReturnValue({
       push: vi.fn()
     } as unknown as ReturnType<typeof useRouter>)
     useCases = {
+      prepareTodayTrainingDay: {
+        handle: vi.fn().mockImplementation(async () => toLocalDayKey())
+      },
       registerExercise: { handle: vi.fn().mockResolvedValue(undefined) },
       updateExercise: { handle: vi.fn().mockResolvedValue(undefined) },
       archiveExercise: { handle: vi.fn().mockResolvedValue(undefined) },
@@ -82,6 +89,11 @@ describe('today’s arcade training dashboard', () => {
       recordReps: vi.fn(),
       undoRepLog: vi.fn()
     }
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
   })
 
   function openDashboard() {
@@ -106,6 +118,120 @@ describe('today’s arcade training dashboard', () => {
           .text()
       )
   }
+
+  function givenDayPreparationIsPending() {
+    let finish!: (day: LocalDayKey) => void
+    vi.mocked(useCases.prepareTodayTrainingDay.handle).mockReturnValueOnce(
+      new Promise<LocalDayKey>((resolve) => {
+        finish = resolve
+      })
+    )
+    return { finish }
+  }
+
+  async function whenTheyReturnToTheApp() {
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    document.dispatchEvent(new Event('visibilitychange'))
+    await flushPromises()
+  }
+
+  it('waits for preparation and reads the exact day that was opened', async () => {
+    const preparation = givenDayPreparationIsPending()
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    expect(queries.getDashboard).not.toHaveBeenCalled()
+    expect(dashboard.find('[aria-busy="true"]').exists()).toBe(true)
+
+    const preparedDay = shiftLocalDay(today, 1)
+    preparation.finish(preparedDay)
+    await flushPromises()
+
+    expect(queries.getDashboard).toHaveBeenCalledWith(
+      preparedDay,
+      '2026-08-01',
+      '2026-08-31'
+    )
+  })
+
+  it('shows a load error if the first dashboard visit cannot prepare today', async () => {
+    vi.mocked(useCases.prepareTodayTrainingDay.handle).mockRejectedValueOnce(
+      new Error('Storage unavailable')
+    )
+
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    expect(dashboard.find('[role="alert"]').exists()).toBe(true)
+    expect(dashboard.find('[aria-busy="true"]').exists()).toBe(false)
+    expect(queries.getDashboard).not.toHaveBeenCalled()
+  })
+
+  it('prepares the new day when midnight passes with the dashboard open', async () => {
+    vi.setSystemTime(new Date(2026, 7, 24, 23, 59, 59))
+    openDashboard()
+    await flushPromises()
+
+    await vi.advanceTimersByTimeAsync(1100)
+    await flushPromises()
+
+    expect(useCases.prepareTodayTrainingDay.handle).toHaveBeenCalledTimes(2)
+    expect(queries.getDashboard).toHaveBeenLastCalledWith(
+      '2026-08-25',
+      '2026-08-01',
+      '2026-08-31'
+    )
+  })
+
+  it('prepares the new day and month when the athlete resumes the app after an absence', async () => {
+    openDashboard()
+    await flushPromises()
+    vi.setSystemTime(new Date(2026, 8, 1, 8))
+
+    await whenTheyReturnToTheApp()
+
+    expect(useCases.prepareTodayTrainingDay.handle).toHaveBeenCalledTimes(2)
+    expect(queries.getDashboard).toHaveBeenLastCalledWith(
+      '2026-09-01',
+      '2026-09-01',
+      '2026-09-30'
+    )
+  })
+
+  it('hides the stale plan when preparation fails on returning to the app', async () => {
+    vi.mocked(queries.getDashboard).mockResolvedValue(
+      snapshot({ exercises: [exercise()] })
+    )
+    const dashboard = openDashboard()
+    await flushPromises()
+    expect(exerciseNames(dashboard)).toEqual(['Push-ups'])
+    vi.mocked(useCases.prepareTodayTrainingDay.handle).mockRejectedValueOnce(
+      new Error('Storage unavailable')
+    )
+
+    await whenTheyReturnToTheApp()
+
+    expect(dashboard.find('[role="alert"]').exists()).toBe(true)
+    expect(exerciseNames(dashboard)).toEqual([])
+    expect(queries.getDashboard).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the latest dashboard when an earlier preparation finishes late', async () => {
+    const earlierPreparation = givenDayPreparationIsPending()
+    const dashboard = openDashboard()
+    await whenTheyReturnToTheApp()
+
+    earlierPreparation.finish(shiftLocalDay(today, -1))
+    await flushPromises()
+
+    expect(queries.getDashboard).toHaveBeenCalledTimes(1)
+    expect(queries.getDashboard).toHaveBeenCalledWith(
+      today,
+      '2026-08-01',
+      '2026-08-31'
+    )
+    expect(dashboard.find('[role="alert"]').exists()).toBe(false)
+  })
 
   async function givenTheyCompleteTheFirstOfTwoExercises() {
     const pushUps = exercise()

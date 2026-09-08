@@ -1,15 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ProgressDatabase } from '@/db'
 import { DexieProgressCommands } from '@/progress/commands'
 import type { LocalDayKey } from '@/progress/date'
 import { DexieProgressQueries } from '@/progress/queries'
 import { ArchiveExerciseUseCase } from '@/progress/write/exercises/application/ArchiveExerciseUseCase'
+import { PrepareTodayTrainingDayUseCase } from '@/progress/write/exercises/application/PrepareTodayTrainingDayUseCase'
 import { RegisterExerciseUseCase } from '@/progress/write/exercises/application/RegisterExerciseUseCase'
 import { RestoreExerciseUseCase } from '@/progress/write/exercises/application/RestoreExerciseUseCase'
 import { UpdateExerciseUseCase } from '@/progress/write/exercises/application/UpdateExerciseUseCase'
 import { DuplicateExerciseNameError } from '@/progress/write/exercises/domain/Exercise'
-import { TrainingDayFinalizedError } from '@/progress/write/exercises/domain/TrainingDay'
+import { TrainingDayNotOpenForTodayError } from '@/progress/write/exercises/domain/TrainingDay'
 import { DexieDailyCompletion } from '@/progress/write/exercises/infra/db/DexieDailyCompletion'
 import { DexieDayOutcomeRepo } from '@/progress/write/exercises/infra/db/DexieDayOutcomeRepo'
 import { DexieExerciseRepo } from '@/progress/write/exercises/infra/db/DexieExerciseRepo'
@@ -37,6 +38,9 @@ describe('a training day saved on the athlete’s device', () => {
   let commands: DexieProgressCommands
   let queries: DexieProgressQueries
   let registerExercise: RegisterExerciseUseCase
+  let prepareTodayTrainingDay: PrepareTodayTrainingDayUseCase
+  let trainingDayRepo: DexieTrainingDayRepo
+  let now: Date
   let updateExercise: UpdateExerciseUseCase
   let archiveExercise: ArchiveExerciseUseCase
   let restoreExercise: RestoreExerciseUseCase
@@ -45,19 +49,26 @@ describe('a training day saved on the athlete’s device', () => {
   beforeEach(() => {
     databaseName = `progress-story-${crypto.randomUUID()}`
     database = new ProgressDatabase(databaseName)
+    now = new Date(fixedNow)
     idGenerator = new StoryIdGenerator()
     const unitOfWork = new DexieUnitOfWork(database)
     const exerciseRepo = new DexieExerciseRepo(database)
-    const trainingDayRepo = new DexieTrainingDayRepo(database)
+    trainingDayRepo = new DexieTrainingDayRepo(database)
     const playerStatsRepo = new DexiePlayerStatsRepo(database)
     const dayOutcomeRepo = new DexieDayOutcomeRepo(database)
-    const clock = { now: () => fixedNow }
-    registerExercise = new RegisterExerciseUseCase(
+    const clock = { now: () => now }
+    prepareTodayTrainingDay = new PrepareTodayTrainingDayUseCase(
       unitOfWork,
       exerciseRepo,
       trainingDayRepo,
       playerStatsRepo,
       dayOutcomeRepo,
+      clock
+    )
+    registerExercise = new RegisterExerciseUseCase(
+      unitOfWork,
+      exerciseRepo,
+      trainingDayRepo,
       idGenerator,
       clock
     )
@@ -81,7 +92,7 @@ describe('a training day saved on the athlete’s device', () => {
     )
     commands = new DexieProgressCommands(
       database,
-      () => fixedNow,
+      () => now,
       () => idGenerator.generate()
     )
     queries = new DexieProgressQueries(database)
@@ -92,6 +103,7 @@ describe('a training day saved on the athlete’s device', () => {
   })
 
   async function givenAnExercise(name: string, dailyGoal: number) {
+    await whenTheyOpenTheDashboard()
     await registerExercise.handle({ name, dailyGoal })
     const exercise = await database.exercises.get(idGenerator.latestId)
 
@@ -100,6 +112,16 @@ describe('a training day saved on the athlete’s device', () => {
     }
 
     return exercise
+  }
+
+  async function whenTheyOpenTheDashboard() {
+    return prepareTodayTrainingDay.handle()
+  }
+
+  async function givenTheyCompletedTodayAndReturnedTomorrow() {
+    const exercise = await givenAnExercise('Push-ups', 1)
+    await whenTheAthleteAdds(exercise.id, 1)
+    now = new Date('2026-08-25T08:00:00.000Z')
   }
 
   async function whenTheAthleteAdds(
@@ -141,6 +163,7 @@ describe('a training day saved on the athlete’s device', () => {
       ]
     })
 
+    await whenTheyOpenTheDashboard()
     await registerExercise.handle({ name: 'Push-ups', dailyGoal: 40 })
 
     expect(await database.trainingDays.toArray()).toEqual([
@@ -174,7 +197,7 @@ describe('a training day saved on the athlete’s device', () => {
     })
   })
 
-  it('rolls registration back if the impossible finalized-today state appears', async () => {
+  it('rejects registration if the impossible finalized-today state appears', async () => {
     await database.trainingDays.add({
       day: today,
       status: 'FINALIZED',
@@ -183,12 +206,87 @@ describe('a training day saved on the athlete’s device', () => {
 
     await expect(
       registerExercise.handle({ name: 'Push-ups', dailyGoal: 40 })
-    ).rejects.toBeInstanceOf(TrainingDayFinalizedError)
+    ).rejects.toBeInstanceOf(TrainingDayNotOpenForTodayError)
 
     expect(await database.exercises.count()).toBe(0)
     expect(await database.trainingDays.get(today)).toEqual({
       day: today,
       status: 'FINALIZED',
+      exercises: []
+    })
+  })
+
+  it('settles the completed day once when two dashboard visits arrive together', async () => {
+    await givenTheyCompletedTodayAndReturnedTomorrow()
+
+    expect(
+      await Promise.all([
+        whenTheyOpenTheDashboard(),
+        whenTheyOpenTheDashboard()
+      ])
+    ).toEqual(['2026-08-25', '2026-08-25'])
+
+    expect(await database.trainingDays.toArray()).toMatchObject([
+      { day: today, status: 'FINALIZED' },
+      { day: '2026-08-25', status: 'OPEN' }
+    ])
+    expect(await database.dayOutcomes.toArray()).toEqual([
+      { day: today, result: 'COMPLETED' }
+    ])
+    expect(await database.playerStats.get('current')).toEqual({
+      currentStreak: 1,
+      availableShields: 0,
+      completedDaysTowardNextShield: 1
+    })
+  })
+
+  it('keeps yesterday and its rewards untouched if opening the new day fails', async () => {
+    await givenTheyCompletedTodayAndReturnedTomorrow()
+    const save = trainingDayRepo.save.bind(trainingDayRepo)
+    const storageFailure = new Error('The new day could not be saved')
+    const failingSave = vi
+      .spyOn(trainingDayRepo, 'save')
+      .mockImplementation(async (day) => {
+        if (day.day === '2026-08-25') {
+          throw storageFailure
+        }
+
+        await save(day)
+      })
+
+    await expect(whenTheyOpenTheDashboard()).rejects.toBe(storageFailure)
+
+    expect(await database.trainingDays.toArray()).toMatchObject([
+      { day: today, status: 'OPEN' }
+    ])
+    expect(await database.dayOutcomes.count()).toBe(0)
+    expect(await database.playerStats.get('current')).toBeUndefined()
+    expect(await database.repLogs.count()).toBe(1)
+
+    failingSave.mockRestore()
+    await whenTheyOpenTheDashboard()
+
+    expect(await database.dayOutcomes.toArray()).toEqual([
+      { day: today, result: 'COMPLETED' }
+    ])
+    expect(await database.playerStats.get('current')).toMatchObject({
+      currentStreak: 1
+    })
+  })
+
+  it('rolls the new exercise back if adding it to today’s plan fails', async () => {
+    await whenTheyOpenTheDashboard()
+    const storageFailure = new Error('The updated plan could not be saved')
+    vi.spyOn(trainingDayRepo, 'save').mockRejectedValueOnce(storageFailure)
+
+    await expect(
+      registerExercise.handle({ name: 'Push-ups', dailyGoal: 40 })
+    ).rejects.toBe(storageFailure)
+
+    expect(await database.exercises.count()).toBe(0)
+    expect(await database.trainingDays.get(today)).toEqual({
+      day: today,
+      status: 'OPEN',
       exercises: []
     })
   })

@@ -68,6 +68,51 @@ test.describe('an athlete clears one exercise while another still needs work', (
 })
 
 test.describe('an athlete keeps a hard-earned streak alive', () => {
+  test('closes yesterday and opens a fresh plan simply by returning to the dashboard', async ({
+    page
+  }) => {
+    await page.clock.setFixedTime(new Date('2026-08-24T08:00:00.000Z'))
+    await givenTheyOpenTheDashboard(page)
+    await whenTheyChooseToAddAnExercise(page)
+    await whenTheyCreateAnExercise(page, { name: 'Push-ups', dailyGoal: 15 })
+    await whenTheyExpandTheExercise(page, 'Push-ups')
+    await whenTheyRecordTenReps(page, 'Push-ups')
+    await thenTheySeeFiveRepsRemaining(page, 'Push-ups')
+    await whenTheyRecordFiveReps(page, 'Push-ups')
+    await thenTheySeeThatTodaysGoalIsComplete(page, 'Push-ups')
+
+    await test.step('When they return the next morning without registering another exercise', async () => {
+      await page.clock.setFixedTime(new Date('2026-08-25T08:00:00.000Z'))
+      await whenTheyReturnToTheDashboard(page)
+    })
+
+    await thenTheirNewExerciseAppears(page, 'Push-ups')
+    await whenTheyExpandTheExercise(page, 'Push-ups')
+    await thenTheirNewExerciseStartsAtZero(page, {
+      name: 'Push-ups',
+      dailyGoal: 15
+    })
+    await test.step('Then yesterday is finalized and today has the same exercise plan', async () => {
+      await expect
+        .poll(() => readTrainingHistory(page))
+        .toMatchObject({
+          trainingDays: [
+            {
+              day: '2026-08-24',
+              status: 'FINALIZED',
+              exercises: [{ name: 'Push-ups', dailyGoal: 15 }]
+            },
+            {
+              day: '2026-08-25',
+              status: 'OPEN',
+              exercises: [{ name: 'Push-ups', dailyGoal: 15 }]
+            }
+          ],
+          dayOutcomes: [{ day: '2026-08-24', result: 'COMPLETED' }]
+        })
+    })
+  })
+
   test('earns a shield and automatically spends it on a missed day', async ({
     page
   }) => {
@@ -83,6 +128,36 @@ test.describe('an athlete keeps a hard-earned streak alive', () => {
     await thenTheShieldProtectedTheirStreak(page, protectedHistory)
   })
 })
+
+async function readTrainingHistory(page: Page) {
+  return page.evaluate(async () => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('progress')
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+
+    try {
+      const transaction = database.transaction(
+        ['trainingDays', 'dayOutcomes'],
+        'readonly'
+      )
+      const [trainingDays, dayOutcomes] = await Promise.all(
+        ['trainingDays', 'dayOutcomes'].map(
+          (store) =>
+            new Promise<unknown[]>((resolve, reject) => {
+              const request = transaction.objectStore(store).getAll()
+              request.onsuccess = () => resolve(request.result)
+              request.onerror = () => reject(request.error)
+            })
+        )
+      )
+      return { trainingDays, dayOutcomes }
+    } finally {
+      database.close()
+    }
+  })
+}
 
 async function givenTheyOpenTheDashboard(page: Page) {
   await test.step('Given a first-time athlete opens the dashboard', async () => {

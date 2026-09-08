@@ -75,8 +75,14 @@ async function loadSnapshot() {
   const range = monthRange(selectedMonth.value)
 
   try {
+    const preparedDay = await useCases.prepareTodayTrainingDay.handle()
+
+    if (sequence !== loadSequence) {
+      return
+    }
+
     const nextSnapshot = await queries.getDashboard(
-      today.value,
+      preparedDay,
       range.firstDayKey,
       range.lastDayKey
     )
@@ -109,6 +115,9 @@ async function loadSnapshot() {
   } catch {
     if (sequence === loadSequence) {
       loadError.value = true
+      snapshot.value = null
+      expandedExerciseId.value = null
+      clearDeferredExerciseOrder()
     }
   } finally {
     if (sequence === loadSequence) {

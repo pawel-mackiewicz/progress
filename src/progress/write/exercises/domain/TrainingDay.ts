@@ -18,6 +18,7 @@ export type TrainingDaySnapshot = {
 }
 
 export class TrainingDayFinalizedError extends Error {}
+export class TrainingDayNotOpenForTodayError extends Error {}
 export class ExerciseNotInTrainingDayError extends Error {}
 export class RepLogNotInOpenDayError extends Error {}
 

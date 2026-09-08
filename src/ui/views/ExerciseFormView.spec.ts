@@ -3,6 +3,8 @@ import { reactive } from 'vue'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
 import type { AppUseCases } from '@/appServices'
+import { toLocalDayKey } from '@/progress/date'
+import { TrainingDayNotOpenForTodayError } from '@/progress/write/exercises/domain/TrainingDay'
 import type {
   Exercise,
   ProgressCommands,
@@ -29,6 +31,9 @@ describe('the exercise mission form', () => {
     route = reactive({ params: {} })
     push = vi.fn().mockResolvedValue(undefined)
     useCases = {
+      prepareTodayTrainingDay: {
+        handle: vi.fn().mockResolvedValue(toLocalDayKey())
+      },
       registerExercise: { handle: vi.fn().mockResolvedValue(undefined) },
       updateExercise: { handle: vi.fn().mockResolvedValue(undefined) },
       archiveExercise: { handle: vi.fn().mockResolvedValue(undefined) },
@@ -116,6 +121,26 @@ describe('the exercise mission form', () => {
       day: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
     })
     expect(push).toHaveBeenCalledWith('/')
+  })
+
+  it('keeps the draft and shows a save error when today has not been prepared', async () => {
+    vi.mocked(useCases.registerExercise.handle).mockRejectedValueOnce(
+      new TrainingDayNotOpenForTodayError()
+    )
+    const form = openForm()
+    const nameInput = form.get<HTMLInputElement>('input[type="text"]')
+    await nameInput.setValue('Push-ups')
+    await form.get('input[type="number"]').setValue('20')
+
+    await form.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(form.get('[role="alert"]').text()).toBe(
+      'The exercise could not be saved. Try again.'
+    )
+    expect(nameInput.element.value).toBe('Push-ups')
+    expect(push).not.toHaveBeenCalled()
+    expect(useCases.prepareTodayTrainingDay.handle).not.toHaveBeenCalled()
   })
 
   it('loads an existing quest and archives it only after confirmation', async () => {
