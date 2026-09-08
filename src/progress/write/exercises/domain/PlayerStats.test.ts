@@ -6,13 +6,24 @@ function applyCompletedDays(stats: PlayerStats, count: number) {
   let updated = stats
 
   for (let completedDay = 0; completedDay < count; completedDay += 1) {
-    updated = updated.apply('COMPLETED')
+    updated = updated.apply(true).stats
   }
 
   return updated
 }
 
 describe('an athlete’s finalized progression', () => {
+  it('records a day where every planned goal was reached as completed', () => {
+    const completedDay = PlayerStats.initial().apply(true)
+
+    expect(completedDay.result).toBe('COMPLETED')
+    expect(completedDay.stats.toSnapshot()).toEqual({
+      currentStreak: 1,
+      availableShields: 0,
+      completedDaysTowardNextShield: 1
+    })
+  })
+
   it('earns one shield for every four new completed days', () => {
     const stats = applyCompletedDays(PlayerStats.initial(), 4)
 
@@ -40,9 +51,10 @@ describe('an athlete’s finalized progression', () => {
       completedDaysTowardNextShield: 2
     })
 
-    const afterMiss = beforeMiss.apply('SHIELDED')
+    const protectedDay = beforeMiss.apply(false)
 
-    expect(afterMiss.toSnapshot()).toEqual({
+    expect(protectedDay.result).toBe('SHIELDED')
+    expect(protectedDay.stats.toSnapshot()).toEqual({
       currentStreak: 6,
       availableShields: 0,
       completedDaysTowardNextShield: 0
@@ -56,7 +68,10 @@ describe('an athlete’s finalized progression', () => {
       completedDaysTowardNextShield: 3
     })
 
-    expect(beforeMiss.apply('FAILED').toSnapshot()).toEqual({
+    const failedDay = beforeMiss.apply(false)
+
+    expect(failedDay.result).toBe('FAILED')
+    expect(failedDay.stats.toSnapshot()).toEqual({
       currentStreak: 0,
       availableShields: 0,
       completedDaysTowardNextShield: 0

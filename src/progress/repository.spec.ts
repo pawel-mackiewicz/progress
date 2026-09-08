@@ -11,7 +11,9 @@ import { UpdateExerciseUseCase } from '@/progress/write/exercises/application/Up
 import { DuplicateExerciseNameError } from '@/progress/write/exercises/domain/Exercise'
 import { TrainingDayFinalizedError } from '@/progress/write/exercises/domain/TrainingDay'
 import { DexieDailyCompletion } from '@/progress/write/exercises/infra/db/DexieDailyCompletion'
+import { DexieDayOutcomeRepo } from '@/progress/write/exercises/infra/db/DexieDayOutcomeRepo'
 import { DexieExerciseRepo } from '@/progress/write/exercises/infra/db/DexieExerciseRepo'
+import { DexiePlayerStatsRepo } from '@/progress/write/exercises/infra/db/DexiePlayerStatsRepo'
 import { DexieTrainingDayRepo } from '@/progress/write/exercises/infra/db/DexieTrainingDayRepo'
 import { DexieUnitOfWork } from '@/progress/write/shared/infra/db/DexieUnitOfWork'
 
@@ -47,11 +49,15 @@ describe('a training day saved on the athlete’s device', () => {
     const unitOfWork = new DexieUnitOfWork(database)
     const exerciseRepo = new DexieExerciseRepo(database)
     const trainingDayRepo = new DexieTrainingDayRepo(database)
+    const playerStatsRepo = new DexiePlayerStatsRepo(database)
+    const dayOutcomeRepo = new DexieDayOutcomeRepo(database)
     const clock = { now: () => fixedNow }
     registerExercise = new RegisterExerciseUseCase(
       unitOfWork,
       exerciseRepo,
       trainingDayRepo,
+      playerStatsRepo,
+      dayOutcomeRepo,
       idGenerator,
       clock
     )
@@ -158,6 +164,14 @@ describe('a training day saved on the athlete’s device', () => {
         ]
       }
     ])
+    expect(await database.dayOutcomes.toArray()).toEqual([
+      { day: '2026-08-23', result: 'FAILED' }
+    ])
+    expect(await database.playerStats.get('current')).toEqual({
+      currentStreak: 0,
+      availableShields: 0,
+      completedDaysTowardNextShield: 0
+    })
   })
 
   it('rolls registration back if the impossible finalized-today state appears', async () => {

@@ -11,7 +11,9 @@ import type { RegisterExerciseCommand } from '@/progress/write/exercises/applica
 import type { RestoreExerciseCommand } from '@/progress/write/exercises/application/requests/RestoreExerciseCommand'
 import type { UpdateExerciseCommand } from '@/progress/write/exercises/application/requests/UpdateExerciseCommand'
 import { DexieDailyCompletion } from '@/progress/write/exercises/infra/db/DexieDailyCompletion'
+import { DexieDayOutcomeRepo } from '@/progress/write/exercises/infra/db/DexieDayOutcomeRepo'
 import { DexieExerciseRepo } from '@/progress/write/exercises/infra/db/DexieExerciseRepo'
+import { DexiePlayerStatsRepo } from '@/progress/write/exercises/infra/db/DexiePlayerStatsRepo'
 import { DexieTrainingDayRepo } from '@/progress/write/exercises/infra/db/DexieTrainingDayRepo'
 import type { UseCase } from '@/progress/write/shared/UseCase'
 import { IdGenerator } from '@/progress/write/shared/infra/IdGenerator'
@@ -36,6 +38,8 @@ export function createAppServices(database: ProgressDatabase): AppServices {
   const unitOfWork = new DexieUnitOfWork(database)
   const exerciseRepo = new DexieExerciseRepo(database)
   const trainingDayRepo = new DexieTrainingDayRepo(database)
+  const playerStatsRepo = new DexiePlayerStatsRepo(database)
+  const dayOutcomeRepo = new DexieDayOutcomeRepo(database)
   const idGenerator = new IdGenerator()
   const clock = new SystemClock()
   const dailyCompletion = new DexieDailyCompletion(database, clock)
@@ -49,6 +53,8 @@ export function createAppServices(database: ProgressDatabase): AppServices {
         unitOfWork,
         exerciseRepo,
         trainingDayRepo,
+        playerStatsRepo,
+        dayOutcomeRepo,
         idGenerator,
         clock
       ),

@@ -9,6 +9,11 @@ export type PlayerStatsSnapshot = {
   completedDaysTowardNextShield: number
 }
 
+export type AppliedDay = {
+  stats: PlayerStats
+  result: DayResult
+}
+
 export class PlayerStats {
   private constructor(
     public readonly currentStreak: number,
@@ -28,38 +33,52 @@ export class PlayerStats {
     )
   }
 
-  public resultForMiss(): Extract<DayResult, 'SHIELDED' | 'FAILED'> {
-    return this.availableShields > 0 ? 'SHIELDED' : 'FAILED'
-  }
-
-  public apply(result: DayResult): PlayerStats {
-    if (result === 'COMPLETED') {
+  /**
+   * Applies one finalized calendar day to the athlete's progression.
+   * `true` means every planned exercise goal was reached. `false` means the
+   * day was missed and will become SHIELDED or FAILED based on the current
+   * shield balance.
+   */
+  public apply(isComplete: boolean): AppliedDay {
+    if (isComplete) {
       const completedDays = this.completedDaysTowardNextShield + 1
 
       if (completedDays === COMPLETED_DAYS_PER_SHIELD) {
-        return new PlayerStats(
-          this.currentStreak + 1,
-          Math.min(this.availableShields + 1, MAX_SHIELDS),
-          0
-        )
+        return {
+          stats: new PlayerStats(
+            this.currentStreak + 1,
+            Math.min(this.availableShields + 1, MAX_SHIELDS),
+            0
+          ),
+          result: 'COMPLETED'
+        }
       }
 
-      return new PlayerStats(
-        this.currentStreak + 1,
-        this.availableShields,
-        completedDays
-      )
+      return {
+        stats: new PlayerStats(
+          this.currentStreak + 1,
+          this.availableShields,
+          completedDays
+        ),
+        result: 'COMPLETED'
+      }
     }
 
-    if (result === 'SHIELDED') {
-      return new PlayerStats(
-        this.currentStreak,
-        Math.max(this.availableShields - 1, 0),
-        0
-      )
+    if (this.availableShields > 0) {
+      return {
+        stats: new PlayerStats(
+          this.currentStreak,
+          this.availableShields - 1,
+          0
+        ),
+        result: 'SHIELDED'
+      }
     }
 
-    return new PlayerStats(0, this.availableShields, 0)
+    return {
+      stats: new PlayerStats(0, 0, 0),
+      result: 'FAILED'
+    }
   }
 
   public toSnapshot(): PlayerStatsSnapshot {

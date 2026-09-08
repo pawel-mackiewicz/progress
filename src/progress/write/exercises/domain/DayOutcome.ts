@@ -15,6 +15,10 @@ export class DayOutcome {
     Object.freeze(this)
   }
 
+  public static restore(snapshot: DayOutcomeSnapshot): DayOutcome {
+    return new DayOutcome(snapshot.day, snapshot.result)
+  }
+
   public toSnapshot(): DayOutcomeSnapshot {
     return { day: this.day, result: this.result }
   }
