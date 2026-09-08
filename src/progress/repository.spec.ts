@@ -76,6 +76,7 @@ describe('a training day saved on the athlete’s device', () => {
     updateExercise = new UpdateExerciseUseCase(
       unitOfWork,
       exerciseRepo,
+      trainingDayRepo,
       dailyCompletion,
       clock
     )

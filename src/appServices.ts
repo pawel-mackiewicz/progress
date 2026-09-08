@@ -70,6 +70,7 @@ export function createAppServices(database: ProgressDatabase): AppServices {
       updateExercise: new UpdateExerciseUseCase(
         unitOfWork,
         exerciseRepo,
+        trainingDayRepo,
         dailyCompletion,
         clock
       ),
