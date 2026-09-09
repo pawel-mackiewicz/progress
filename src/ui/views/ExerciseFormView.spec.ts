@@ -34,6 +34,7 @@ describe('the exercise mission form', () => {
       prepareTodayTrainingDay: {
         handle: vi.fn().mockResolvedValue(toLocalDayKey())
       },
+      addRep: { handle: vi.fn() },
       registerExercise: { handle: vi.fn().mockResolvedValue(undefined) },
       updateExercise: { handle: vi.fn().mockResolvedValue(undefined) },
       archiveExercise: { handle: vi.fn().mockResolvedValue(undefined) },

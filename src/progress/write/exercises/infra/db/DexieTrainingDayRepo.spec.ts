@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ProgressDatabase } from '@/db'
 import type { LocalDayKey } from '@/progress/date'
 import { Exercise } from '@/progress/write/exercises/domain/Exercise'
+import { RepLog } from '@/progress/write/exercises/domain/RepLog'
 import { TrainingDay } from '@/progress/write/exercises/domain/TrainingDay'
 import { DexieTrainingDayRepo } from '@/progress/write/exercises/infra/db/DexieTrainingDayRepo'
 
@@ -61,6 +62,35 @@ describe('a training day stored on the athlete’s device', () => {
         createdAt: now.toISOString()
       }
     ])
+  })
+
+  it('inserts one set into the rep story without replacing the plan or its earlier sets', async () => {
+    const day = '2026-08-24'
+    const trainingDay = TrainingDay.open(day, [anExercise('push-ups')])
+    await repository.save(trainingDay)
+    await givenARepLog(day)
+    const afternoonSet = RepLog.record(
+      'push-ups',
+      day,
+      5,
+      'afternoon-set',
+      new Date('2026-08-24T12:00:00.000Z')
+    )
+
+    await repository.addRepLog(afternoonSet)
+
+    const restoredDay = await repository.findLatest()
+    expect(restoredDay?.repLogs.map((repLog) => repLog.id)).toEqual([
+      'morning-set',
+      'afternoon-set'
+    ])
+    expect(await database.trainingDays.get(day)).toEqual(
+      trainingDay.toSnapshot()
+    )
+    expect(await database.repLogs.count()).toBe(2)
+
+    await expect(repository.addRepLog(afternoonSet)).rejects.toBeDefined()
+    expect(await database.repLogs.count()).toBe(2)
   })
 
   it('replaces the same day when its plan is finalized', async () => {

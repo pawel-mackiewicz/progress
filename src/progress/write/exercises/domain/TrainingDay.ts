@@ -17,6 +17,12 @@ export type TrainingDaySnapshot = {
   exercises: TrainingExerciseSnapshot[]
 }
 
+export type ExerciseProgress = {
+  dailyGoal: number
+  completedReps: number
+  isCompleted: boolean
+}
+
 export class TrainingDayFinalizedError extends Error {}
 export class TrainingDayNotOpenForTodayError extends Error {}
 export class ExerciseNotInTrainingDayError extends Error {}
@@ -98,6 +104,28 @@ export class TrainingDay {
 
   public get hasExercises(): boolean {
     return this.exercisePlan.length > 0
+  }
+
+  public getExerciseProgress(exerciseId: string): ExerciseProgress {
+    const exercise = this.exercisePlan.find(
+      (item) => item.exerciseId === exerciseId
+    )
+
+    if (!exercise) {
+      throw new ExerciseNotInTrainingDayError(
+        'Exercise does not belong to the training day.'
+      )
+    }
+
+    const completedReps = this.logs
+      .filter((repLog) => repLog.exerciseId === exerciseId)
+      .reduce((total, repLog) => total + repLog.amount, 0)
+
+    return {
+      dailyGoal: exercise.dailyGoal,
+      completedReps,
+      isCompleted: completedReps >= exercise.dailyGoal
+    }
   }
 
   public addExercise(exercise: Exercise): TrainingDay {

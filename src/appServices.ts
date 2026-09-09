@@ -3,11 +3,16 @@ import { DexieProgressCommands } from '@/progress/commands'
 import { DexieProgressQueries } from '@/progress/queries'
 import type { LocalDayKey } from '@/progress/date'
 import type { ProgressCommands, ProgressQueries } from '@/progress/types'
+import {
+  AddRepUseCase,
+  type AddRepResult
+} from '@/progress/write/exercises/application/AddRepUseCase'
 import { ArchiveExerciseUseCase } from '@/progress/write/exercises/application/ArchiveExerciseUseCase'
 import { PrepareTodayTrainingDayUseCase } from '@/progress/write/exercises/application/PrepareTodayTrainingDayUseCase'
 import { RegisterExerciseUseCase } from '@/progress/write/exercises/application/RegisterExerciseUseCase'
 import { RestoreExerciseUseCase } from '@/progress/write/exercises/application/RestoreExerciseUseCase'
 import { UpdateExerciseUseCase } from '@/progress/write/exercises/application/UpdateExerciseUseCase'
+import type { AddRepCommand } from '@/progress/write/exercises/application/requests/AddRepCommand'
 import type { ArchiveExerciseCommand } from '@/progress/write/exercises/application/requests/ArchiveExerciseCommand'
 import type { RegisterExerciseCommand } from '@/progress/write/exercises/application/requests/RegisterExerciseCommand'
 import type { RestoreExerciseCommand } from '@/progress/write/exercises/application/requests/RestoreExerciseCommand'
@@ -24,6 +29,7 @@ import { DexieUnitOfWork } from '@/progress/write/shared/infra/db/DexieUnitOfWor
 
 export type AppUseCases = {
   readonly prepareTodayTrainingDay: UseCase<void, LocalDayKey>
+  readonly addRep: UseCase<AddRepCommand, AddRepResult>
   readonly registerExercise: UseCase<RegisterExerciseCommand>
   readonly updateExercise: UseCase<UpdateExerciseCommand>
   readonly archiveExercise: UseCase<ArchiveExerciseCommand>
@@ -58,6 +64,14 @@ export function createAppServices(database: ProgressDatabase): AppServices {
         trainingDayRepo,
         playerStatsRepo,
         dayOutcomeRepo,
+        clock
+      ),
+      addRep: new AddRepUseCase(
+        unitOfWork,
+        exerciseRepo,
+        trainingDayRepo,
+        dailyCompletion,
+        idGenerator,
         clock
       ),
       registerExercise: new RegisterExerciseUseCase(

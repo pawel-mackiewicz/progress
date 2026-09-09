@@ -10,6 +10,20 @@ function anExercise(id: string, dailyGoal: number) {
 }
 
 describe('today’s mutable training plan', () => {
+  it('reports one exercise’s progress without borrowing reps from another', () => {
+    const pushUps = anExercise('push-ups', 20)
+    const squats = anExercise('squats', 10)
+    let day = TrainingDay.open('2026-08-24', [pushUps, squats])
+    day = day.recordReps('push-ups', 10, 'push-set', now).trainingDay
+    day = day.recordReps('squats', 10, 'squat-set', now).trainingDay
+
+    expect(day.getExerciseProgress('push-ups')).toEqual({
+      dailyGoal: 20,
+      completedReps: 10,
+      isCompleted: false
+    })
+  })
+
   it('completes only after every planned exercise reaches its goal', () => {
     let day = TrainingDay.open('2026-08-24', [
       anExercise('push-ups', 10),

@@ -24,4 +24,8 @@ export class DexieTrainingDayRepo implements TrainingDayRepoPort {
   public async save(trainingDay: TrainingDay): Promise<void> {
     await this.database.trainingDays.put(trainingDay.toSnapshot())
   }
+
+  public async addRepLog(repLog: RepLog): Promise<void> {
+    await this.database.repLogs.add(repLog.toSnapshot())
+  }
 }

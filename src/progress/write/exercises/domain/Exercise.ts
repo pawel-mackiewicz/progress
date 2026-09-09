@@ -15,6 +15,7 @@ export type ExerciseSnapshot = {
 }
 export class DuplicateExerciseNameError extends Error {}
 export class ExerciseNotFoundError extends Error {}
+export class ExerciseArchivedError extends Error {}
 
 export function normalizeExerciseName(name: string) {
   return name.trim().toLocaleLowerCase()

@@ -9,7 +9,10 @@ export class DexieDailyCompletion implements DailyCompletionPort {
     private readonly clock: ClockPort
   ) {}
 
-  public async awardIfAllGoalsAreComplete(day: LocalDayKey): Promise<void> {
+  public async awardIfAllGoalsAreComplete(
+    day: LocalDayKey,
+    triggerRepLogId: string | null = null
+  ): Promise<void> {
     if (await this.database.dailyCompletions.get(day)) {
       return
     }
@@ -43,7 +46,7 @@ export class DexieDailyCompletion implements DailyCompletionPort {
       await this.database.dailyCompletions.add({
         day,
         earnedAt: this.clock.now().toISOString(),
-        triggerRepLogId: null
+        triggerRepLogId
       })
     }
   }

@@ -6,9 +6,12 @@ import type {
   RepIncrement,
   RepLog
 } from '@/progress/types'
-import { ExerciseNotFoundError } from '@/progress/write/exercises/domain/Exercise'
+import {
+  ExerciseArchivedError,
+  ExerciseNotFoundError
+} from '@/progress/write/exercises/domain/Exercise'
 
-export class ExerciseArchivedError extends Error {}
+export { ExerciseArchivedError } from '@/progress/write/exercises/domain/Exercise'
 
 export class DexieProgressCommands implements ProgressCommands {
   constructor(

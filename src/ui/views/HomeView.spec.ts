@@ -76,6 +76,7 @@ describe('today’s arcade training dashboard', () => {
       prepareTodayTrainingDay: {
         handle: vi.fn().mockImplementation(async () => toLocalDayKey())
       },
+      addRep: { handle: vi.fn() },
       registerExercise: { handle: vi.fn().mockResolvedValue(undefined) },
       updateExercise: { handle: vi.fn().mockResolvedValue(undefined) },
       archiveExercise: { handle: vi.fn().mockResolvedValue(undefined) },
