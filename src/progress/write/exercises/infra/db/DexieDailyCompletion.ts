@@ -17,6 +17,36 @@ export class DexieDailyCompletion implements DailyCompletionPort {
       return
     }
 
+    if (await this.areAllGoalsComplete(day)) {
+      await this.database.dailyCompletions.add({
+        day,
+        earnedAt: this.clock.now().toISOString(),
+        triggerRepLogId
+      })
+    }
+  }
+
+  public async reconcileAfterRepUndo(
+    day: LocalDayKey,
+    repLogId: string
+  ): Promise<void> {
+    const completion = await this.database.dailyCompletions.get(day)
+
+    if (completion?.triggerRepLogId !== repLogId) {
+      return
+    }
+
+    if (await this.areAllGoalsComplete(day)) {
+      await this.database.dailyCompletions.update(day, {
+        triggerRepLogId: null
+      })
+      return
+    }
+
+    await this.database.dailyCompletions.delete(day)
+  }
+
+  private async areAllGoalsComplete(day: LocalDayKey): Promise<boolean> {
     const [exercises, repLogs] = await Promise.all([
       this.database.exercises.toArray(),
       this.database.repLogs.where('day').equals(day).toArray()
@@ -26,7 +56,7 @@ export class DexieDailyCompletion implements DailyCompletionPort {
     )
 
     if (activeExercises.length === 0) {
-      return
+      return false
     }
 
     const completedReps = new Map<string, number>()
@@ -38,16 +68,8 @@ export class DexieDailyCompletion implements DailyCompletionPort {
       )
     }
 
-    const allGoalsAreComplete = activeExercises.every(
+    return activeExercises.every(
       (exercise) => (completedReps.get(exercise.id) ?? 0) >= exercise.dailyGoal
     )
-
-    if (allGoalsAreComplete) {
-      await this.database.dailyCompletions.add({
-        day,
-        earnedAt: this.clock.now().toISOString(),
-        triggerRepLogId
-      })
-    }
   }
 }

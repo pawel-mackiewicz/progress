@@ -28,4 +28,8 @@ export class DexieTrainingDayRepo implements TrainingDayRepoPort {
   public async addRepLog(repLog: RepLog): Promise<void> {
     await this.database.repLogs.add(repLog.toSnapshot())
   }
+
+  public async removeRepLog(repLogId: string): Promise<void> {
+    await this.database.repLogs.delete(repLogId)
+  }
 }

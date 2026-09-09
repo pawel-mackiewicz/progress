@@ -93,6 +93,31 @@ describe('a training day stored on the athlete’s device', () => {
     expect(await database.repLogs.count()).toBe(2)
   })
 
+  it('removes one mistaken set without replacing the plan or its earlier sets', async () => {
+    const day = '2026-08-24'
+    const trainingDay = TrainingDay.open(day, [anExercise('push-ups')])
+    await repository.save(trainingDay)
+    await givenARepLog(day)
+    await database.repLogs.add({
+      id: 'afternoon-set',
+      exerciseId: 'push-ups',
+      day,
+      amount: 5,
+      createdAt: new Date('2026-08-24T12:00:00.000Z').toISOString()
+    })
+
+    await repository.removeRepLog('afternoon-set')
+
+    const restoredDay = await repository.findLatest()
+    expect(restoredDay?.repLogs.map((repLog) => repLog.id)).toEqual([
+      'morning-set'
+    ])
+    expect(await database.trainingDays.get(day)).toEqual(
+      trainingDay.toSnapshot()
+    )
+    expect(await database.repLogs.count()).toBe(1)
+  })
+
   it('replaces the same day when its plan is finalized', async () => {
     const openDay = TrainingDay.open('2026-08-24', [anExercise('push-ups')])
     await repository.save(openDay)

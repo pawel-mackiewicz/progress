@@ -6,11 +6,13 @@ export interface TrainingDayRepoPort {
   findLatest(): Promise<TrainingDay | undefined>
   save(trainingDay: TrainingDay): Promise<void>
   addRepLog(repLog: RepLog): Promise<void>
+  removeRepLog(repLogId: string): Promise<void>
 }
 
 export class FakeTrainingDayRepo implements TrainingDayRepoPort {
   public readonly savedTrainingDays: TrainingDay[] = []
   public readonly addedRepLogs: RepLog[] = []
+  public readonly removedRepLogIds: string[] = []
   public findLatestCalls = 0
   private readonly existingTrainingDays: TrainingDay[] = []
   private readonly existingRepLogs: RepLog[] = []
@@ -40,7 +42,8 @@ export class FakeTrainingDayRepo implements TrainingDayRepoPort {
     }
 
     const repLogs = [...this.existingRepLogs, ...this.addedRepLogs].filter(
-      (repLog) => repLog.day === latest.day
+      (repLog) =>
+        repLog.day === latest.day && !this.removedRepLogIds.includes(repLog.id)
     )
     const latestAlreadyHasEveryRepLog =
       latest.repLogs.length === repLogs.length &&
@@ -65,5 +68,9 @@ export class FakeTrainingDayRepo implements TrainingDayRepoPort {
     }
 
     this.addedRepLogs.push(repLog)
+  }
+
+  public async removeRepLog(repLogId: string): Promise<void> {
+    this.removedRepLogIds.push(repLogId)
   }
 }

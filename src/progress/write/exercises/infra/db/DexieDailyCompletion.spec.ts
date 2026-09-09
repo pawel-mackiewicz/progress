@@ -61,4 +61,46 @@ describe('a completed training day stored on the athlete’s device', () => {
       triggerRepLogId: null
     })
   })
+
+  it('takes back a reward when its completing set is undone', async () => {
+    await completion.awardIfAllGoalsAreComplete(day, 'winning-set')
+    await database.repLogs.delete('winning-set')
+
+    await completion.reconcileAfterRepUndo(day, 'winning-set')
+
+    expect(await database.dailyCompletions.get(day)).toBeUndefined()
+  })
+
+  it('keeps the reward but detaches its trigger when enough reps remain', async () => {
+    await database.repLogs.add({
+      id: 'earlier-set',
+      exerciseId: 'push-ups',
+      day,
+      amount: 10,
+      createdAt: new Date('2026-08-24T10:00:00.000Z').toISOString()
+    })
+    await completion.awardIfAllGoalsAreComplete(day, 'winning-set')
+    await database.repLogs.delete('winning-set')
+
+    await completion.reconcileAfterRepUndo(day, 'winning-set')
+
+    expect(await database.dailyCompletions.get(day)).toEqual({
+      day,
+      earnedAt: earnedAt.toISOString(),
+      triggerRepLogId: null
+    })
+  })
+
+  it('leaves a reward earned by another action untouched', async () => {
+    await completion.awardIfAllGoalsAreComplete(day)
+    await database.repLogs.delete('winning-set')
+
+    await completion.reconcileAfterRepUndo(day, 'winning-set')
+
+    expect(await database.dailyCompletions.get(day)).toEqual({
+      day,
+      earnedAt: earnedAt.toISOString(),
+      triggerRepLogId: null
+    })
+  })
 })
