@@ -1,10 +1,7 @@
 import type { AppServices } from '@/appServices'
 import { inject, type App, type InjectionKey } from 'vue'
 
-export type UiAppServices = Pick<
-  AppServices,
-  'queries' | 'commands' | 'useCases'
->
+export type UiAppServices = Pick<AppServices, 'queries' | 'useCases'>
 
 export const appServicesKey: InjectionKey<UiAppServices> =
   Symbol('app-services')

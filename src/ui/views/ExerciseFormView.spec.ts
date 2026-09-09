@@ -5,11 +5,7 @@ import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import type { AppUseCases } from '@/appServices'
 import { toLocalDayKey } from '@/progress/date'
 import { TrainingDayNotOpenForTodayError } from '@/progress/write/exercises/domain/TrainingDay'
-import type {
-  Exercise,
-  ProgressCommands,
-  ProgressQueries
-} from '@/progress/types'
+import type { Exercise, ProgressQueries } from '@/progress/types'
 import { createAppServicesProvides } from '@/ui/appServices'
 import { createAppI18n } from '@/ui/i18n'
 import { useRoute, useRouter } from '@/ui/router/runtime'
@@ -23,7 +19,6 @@ vi.mock('@/ui/router/runtime', () => ({
 describe('the exercise mission form', () => {
   let route: { params: Record<string, string> }
   let queries: ProgressQueries
-  let commands: ProgressCommands
   let useCases: AppUseCases
   let push: Mock
 
@@ -35,6 +30,7 @@ describe('the exercise mission form', () => {
         handle: vi.fn().mockResolvedValue(toLocalDayKey())
       },
       addRep: { handle: vi.fn() },
+      undoRep: { handle: vi.fn().mockResolvedValue(undefined) },
       registerExercise: { handle: vi.fn().mockResolvedValue(undefined) },
       updateExercise: { handle: vi.fn().mockResolvedValue(undefined) },
       archiveExercise: { handle: vi.fn().mockResolvedValue(undefined) },
@@ -44,11 +40,6 @@ describe('the exercise mission form', () => {
       getExercise: vi.fn().mockResolvedValue(undefined),
       getDashboard: vi.fn()
     }
-    commands = {
-      recordReps: vi.fn(),
-      undoRepLog: vi.fn()
-    }
-
     vi.mocked(useRoute).mockReturnValue(
       route as unknown as ReturnType<typeof useRoute>
     )
@@ -63,7 +54,6 @@ describe('the exercise mission form', () => {
         plugins: [createAppI18n('en')],
         provide: createAppServicesProvides({
           queries,
-          commands,
           useCases
         })
       }

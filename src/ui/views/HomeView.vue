@@ -14,7 +14,7 @@ import HomeHero from '@/ui/progress/HomeHero.vue'
 import { PROGRESS_MESSAGES } from '@/ui/progress/Progress.messages'
 import { RouterLink, useRouter } from '@/ui/router/runtime'
 
-const { commands, queries, useCases } = useAppServices()
+const { queries, useCases } = useAppServices()
 const router = useRouter()
 const { t } = useI18n({
   useScope: 'local',
@@ -135,10 +135,11 @@ async function addReps(
   const exerciseWasIncomplete = !snapshot.value?.exercises.find(
     (exercise) => exercise.id === exerciseId
   )?.isComplete
+  const dayWasIncomplete = !snapshot.value?.isDayComplete
   const exerciseOrder = visibleExercises.value.map((exercise) => exercise.id)
 
   try {
-    const result = await commands.recordReps(exerciseId, amount, today.value)
+    const result = await useCases.addRep.handle({ exerciseId, amount })
     lastRepLogId.value = result.repLogId
     undoCopy.value = t('home.undoMessage', {
       count: amount,
@@ -146,16 +147,16 @@ async function addReps(
     })
     resetSnackbarTimer()
 
-    if (result.didEarnDay) {
-      celebrate()
-    }
-
     if (exerciseWasIncomplete && expandedExerciseId.value === exerciseId) {
       deferredCompletedExerciseId.value = exerciseId
       deferredExerciseOrder.value = exerciseOrder
     }
 
     await loadSnapshot()
+
+    if (dayWasIncomplete && snapshot.value?.isDayComplete) {
+      celebrate()
+    }
 
     if (
       deferredCompletedExerciseId.value === exerciseId &&
@@ -180,7 +181,7 @@ async function undoLastReps() {
   clearTimeout(snackbarTimer)
 
   try {
-    await commands.undoRepLog(repLogId)
+    await useCases.undoRep.handle({ repLogId })
     showCelebration.value = false
     clearTimeout(celebrationTimer)
     await loadSnapshot()

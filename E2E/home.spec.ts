@@ -39,6 +39,23 @@ test.describe('a first-time athlete starts tracking daily progress', () => {
 
     await thenTheySeeThatTodaysGoalIsComplete(page, 'Push-ups')
   })
+
+  test('undoes the most recent set', async ({ page }) => {
+    await givenTheyOpenTheDashboard(page)
+    await whenTheyChooseToAddAnExercise(page)
+    await whenTheyCreateAnExercise(page, {
+      name: 'Push-ups',
+      dailyGoal: 15
+    })
+    await thenTheirNewExerciseAppears(page, 'Push-ups')
+    await whenTheyExpandTheExercise(page, 'Push-ups')
+    await whenTheyRecordTenReps(page, 'Push-ups')
+    await thenTheySeeFiveRepsRemaining(page, 'Push-ups')
+
+    await whenTheyUndoTheirLastSet(page)
+
+    await thenTheySeeTheirRepsWereRemoved(page, 'Push-ups')
+  })
 })
 
 test.describe('an athlete clears one exercise while another still needs work', () => {
@@ -414,6 +431,26 @@ async function whenTheyRecordFiveReps(page: Page, exerciseName: string) {
     await page
       .getByRole('button', { name: `Add 5 reps to ${exerciseName}` })
       .click()
+  })
+}
+
+async function whenTheyUndoTheirLastSet(page: Page) {
+  await test.step('When they undo their last set', async () => {
+    await page.getByRole('button', { name: 'Undo' }).click()
+  })
+}
+
+async function thenTheySeeTheirRepsWereRemoved(
+  page: Page,
+  exerciseName: string
+) {
+  await test.step('Then that set is removed from today’s progress', async () => {
+    await expect(progressFor(page, exerciseName)).toHaveAttribute(
+      'aria-valuenow',
+      '0'
+    )
+    await expect(page.getByText('15 to go', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Undo' })).not.toBeVisible()
   })
 }
 

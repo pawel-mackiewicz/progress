@@ -11,11 +11,13 @@ import { ArchiveExerciseUseCase } from '@/progress/write/exercises/application/A
 import { PrepareTodayTrainingDayUseCase } from '@/progress/write/exercises/application/PrepareTodayTrainingDayUseCase'
 import { RegisterExerciseUseCase } from '@/progress/write/exercises/application/RegisterExerciseUseCase'
 import { RestoreExerciseUseCase } from '@/progress/write/exercises/application/RestoreExerciseUseCase'
+import { UndoRepUseCase } from '@/progress/write/exercises/application/UndoRepUseCase'
 import { UpdateExerciseUseCase } from '@/progress/write/exercises/application/UpdateExerciseUseCase'
 import type { AddRepCommand } from '@/progress/write/exercises/application/requests/AddRepCommand'
 import type { ArchiveExerciseCommand } from '@/progress/write/exercises/application/requests/ArchiveExerciseCommand'
 import type { RegisterExerciseCommand } from '@/progress/write/exercises/application/requests/RegisterExerciseCommand'
 import type { RestoreExerciseCommand } from '@/progress/write/exercises/application/requests/RestoreExerciseCommand'
+import type { UndoRepCommand } from '@/progress/write/exercises/application/requests/UndoRepCommand'
 import type { UpdateExerciseCommand } from '@/progress/write/exercises/application/requests/UpdateExerciseCommand'
 import { DexieDailyCompletion } from '@/progress/write/exercises/infra/db/DexieDailyCompletion'
 import { DexieDayOutcomeRepo } from '@/progress/write/exercises/infra/db/DexieDayOutcomeRepo'
@@ -30,6 +32,7 @@ import { DexieUnitOfWork } from '@/progress/write/shared/infra/db/DexieUnitOfWor
 export type AppUseCases = {
   readonly prepareTodayTrainingDay: UseCase<void, LocalDayKey>
   readonly addRep: UseCase<AddRepCommand, AddRepResult>
+  readonly undoRep: UseCase<UndoRepCommand>
   readonly registerExercise: UseCase<RegisterExerciseCommand>
   readonly updateExercise: UseCase<UpdateExerciseCommand>
   readonly archiveExercise: UseCase<ArchiveExerciseCommand>
@@ -72,6 +75,12 @@ export function createAppServices(database: ProgressDatabase): AppServices {
         trainingDayRepo,
         dailyCompletion,
         idGenerator,
+        clock
+      ),
+      undoRep: new UndoRepUseCase(
+        unitOfWork,
+        trainingDayRepo,
+        dailyCompletion,
         clock
       ),
       registerExercise: new RegisterExerciseUseCase(

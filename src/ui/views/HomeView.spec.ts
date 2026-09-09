@@ -6,7 +6,6 @@ import { shiftLocalDay, toLocalDayKey, type LocalDayKey } from '@/progress/date'
 import type {
   DashboardExercise,
   DashboardSnapshot,
-  ProgressCommands,
   ProgressQueries
 } from '@/progress/types'
 import { createAppServicesProvides } from '@/ui/appServices'
@@ -27,7 +26,6 @@ vi.mock('@/ui/router/runtime', () => ({
 describe('today’s arcade training dashboard', () => {
   const today = '2026-08-24' as const
   let queries: ProgressQueries
-  let commands: ProgressCommands
   let useCases: AppUseCases
 
   function snapshot(
@@ -77,6 +75,7 @@ describe('today’s arcade training dashboard', () => {
         handle: vi.fn().mockImplementation(async () => toLocalDayKey())
       },
       addRep: { handle: vi.fn() },
+      undoRep: { handle: vi.fn().mockResolvedValue(undefined) },
       registerExercise: { handle: vi.fn().mockResolvedValue(undefined) },
       updateExercise: { handle: vi.fn().mockResolvedValue(undefined) },
       archiveExercise: { handle: vi.fn().mockResolvedValue(undefined) },
@@ -85,10 +84,6 @@ describe('today’s arcade training dashboard', () => {
     queries = {
       getExercise: vi.fn(),
       getDashboard: vi.fn().mockResolvedValue(snapshot())
-    }
-    commands = {
-      recordReps: vi.fn(),
-      undoRepLog: vi.fn()
     }
   })
 
@@ -103,7 +98,6 @@ describe('today’s arcade training dashboard', () => {
         plugins: [createAppI18n('en')],
         provide: createAppServicesProvides({
           queries,
-          commands,
           useCases
         })
       }
@@ -256,9 +250,11 @@ describe('today’s arcade training dashboard', () => {
     vi.mocked(queries.getDashboard)
       .mockResolvedValueOnce(activeDay)
       .mockResolvedValueOnce(updatedDay)
-    vi.mocked(commands.recordReps).mockResolvedValue({
+    vi.mocked(useCases.addRep.handle).mockResolvedValue({
       repLogId: 'clearing-set',
-      didEarnDay: false
+      dailyGoal: 10,
+      completedReps: 10,
+      isCompleted: true
     })
     const dashboard = openDashboard()
     await flushPromises()
@@ -420,6 +416,12 @@ describe('today’s arcade training dashboard', () => {
     expect(dashboard.findAll('.exercise-card')).toHaveLength(0)
   })
 
+  it('keeps the perfect-day reward locked while another quest still needs work', async () => {
+    const dashboard = await givenTheyCompleteTheFirstOfTwoExercises()
+
+    expect(dashboard.text()).not.toContain('Quest complete!')
+  })
+
   it('moves a newly cleared quest down when the athlete opens another one', async () => {
     const dashboard = await givenTheyCompleteTheFirstOfTwoExercises()
 
@@ -471,9 +473,11 @@ describe('today’s arcade training dashboard', () => {
     vi.mocked(queries.getDashboard)
       .mockResolvedValueOnce(activeDay)
       .mockResolvedValueOnce(clearedDay)
-    vi.mocked(commands.recordReps).mockResolvedValue({
+    vi.mocked(useCases.addRep.handle).mockResolvedValue({
       repLogId: 'winning-set',
-      didEarnDay: true
+      dailyGoal: 10,
+      completedReps: 10,
+      isCompleted: true
     })
     const dashboard = openDashboard()
     await flushPromises()
@@ -486,7 +490,10 @@ describe('today’s arcade training dashboard', () => {
       .trigger('click')
     await flushPromises()
 
-    expect(commands.recordReps).toHaveBeenCalledWith('push-ups', 5, today)
+    expect(useCases.addRep.handle).toHaveBeenCalledWith({
+      exerciseId: 'push-ups',
+      amount: 5
+    })
     expect(dashboard.text()).toContain('Quest complete!')
     expect(dashboard.text()).toContain('1 day streak')
     expect(
@@ -517,9 +524,11 @@ describe('today’s arcade training dashboard', () => {
       ]
     })
     vi.mocked(queries.getDashboard).mockResolvedValue(activeDay)
-    vi.mocked(commands.recordReps).mockResolvedValue({
+    vi.mocked(useCases.addRep.handle).mockResolvedValue({
       repLogId: 'mistaken-set',
-      didEarnDay: false
+      dailyGoal: 20,
+      completedReps: 15,
+      isCompleted: false
     })
     const dashboard = openDashboard()
     await flushPromises()
@@ -534,6 +543,8 @@ describe('today’s arcade training dashboard', () => {
     await dashboard.get('.home-snackbar button').trigger('click')
     await flushPromises()
 
-    expect(commands.undoRepLog).toHaveBeenCalledWith('mistaken-set')
+    expect(useCases.undoRep.handle).toHaveBeenCalledWith({
+      repLogId: 'mistaken-set'
+    })
   })
 })
