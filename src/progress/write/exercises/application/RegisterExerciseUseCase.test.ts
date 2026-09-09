@@ -121,7 +121,7 @@ describe('an athlete registering an exercise', () => {
     expect(exerciseRepo.savedExercises[0]?.createdAt).toEqual(now)
     expect(idGenerator.generations).toBe(1)
     expect(clock.readings).toBe(1)
-    expect(trainingDayRepo.lookupDays).toEqual([today])
+    expect(trainingDayRepo.findLatestCalls).toBe(1)
     expect(trainingDayRepo.savedTrainingDays[0]?.toSnapshot()).toEqual({
       day: today,
       status: 'OPEN',
@@ -172,7 +172,7 @@ describe('an athlete registering an exercise', () => {
     expect(unitOfWork.executions).toBe(1)
     expect(exerciseRepo.savedExercises).toHaveLength(0)
     expect(trainingDayRepo.savedTrainingDays).toHaveLength(0)
-    expect(trainingDayRepo.lookupDays).toHaveLength(0)
+    expect(trainingDayRepo.findLatestCalls).toBe(0)
     expect(idGenerator.generations).toBe(0)
     expect(clock.readings).toBe(0)
   })

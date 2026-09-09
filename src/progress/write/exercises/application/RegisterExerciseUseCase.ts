@@ -31,7 +31,7 @@ export class RegisterExerciseUseCase implements UseCase<RegisterExerciseCommand>
 
       const now = this.clock.now()
       const today = toLocalDayKey(now)
-      const trainingDay = await this.trainingDayRepo.findLatestOnOrBefore(today)
+      const trainingDay = await this.trainingDayRepo.findLatest()
 
       if (trainingDay?.day !== today || trainingDay.status !== 'OPEN') {
         throw new TrainingDayNotOpenForTodayError(
@@ -52,3 +52,4 @@ export class RegisterExerciseUseCase implements UseCase<RegisterExerciseCommand>
 }
 
 // what about day completion? separate use case called from the dashboard after each rep addition / exercise update?
+// do this after everything.

@@ -37,15 +37,15 @@ describe('a training day stored on the athlete’s device', () => {
     })
   }
 
-  it('restores the latest applicable plan together with its rep story', async () => {
+  it('restores the latest plan together with its rep story', async () => {
     const day = '2026-08-24'
-    await repository.save(TrainingDay.open(day, [anExercise('push-ups')]))
     await repository.save(
-      TrainingDay.open('2026-08-26', [anExercise('future-plank')])
+      TrainingDay.open('2026-08-22', [anExercise('old-plank')])
     )
+    await repository.save(TrainingDay.open(day, [anExercise('push-ups')]))
     await givenARepLog(day)
 
-    const restoredDay = await repository.findLatestOnOrBefore('2026-08-25')
+    const restoredDay = await repository.findLatest()
 
     expect(restoredDay?.toSnapshot()).toEqual({
       day,

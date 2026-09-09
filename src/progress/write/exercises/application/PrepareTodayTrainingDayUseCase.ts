@@ -28,8 +28,7 @@ export class PrepareTodayTrainingDayUseCase implements UseCase<
   public async handle(): Promise<LocalDayKey> {
     return this.unitOfWork.execute(async () => {
       const today = toLocalDayKey(this.clock.now())
-      const latestTrainingDay =
-        await this.trainingDayRepo.findLatestOnOrBefore(today)
+      const latestTrainingDay = await this.trainingDayRepo.findLatest()
 
       if (latestTrainingDay?.day === today) {
         if (latestTrainingDay.status !== 'OPEN') {

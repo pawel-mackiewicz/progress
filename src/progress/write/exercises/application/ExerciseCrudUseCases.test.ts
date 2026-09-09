@@ -127,7 +127,7 @@ describe('an athlete maintaining their exercise plan', () => {
       dailyGoal: 20
     })
     expect(exerciseRepo.savedExercises[0]?.updatedAt).toEqual(now)
-    expect(trainingDayRepo.lookupDays).toEqual([today])
+    expect(trainingDayRepo.findLatestCalls).toBe(1)
     expect(trainingDayRepo.savedTrainingDays[0]?.toSnapshot()).toEqual({
       day: today,
       status: 'OPEN',

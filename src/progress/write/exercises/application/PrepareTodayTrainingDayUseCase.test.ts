@@ -121,12 +121,12 @@ describe('an athlete preparing today by opening the dashboard', () => {
   it('keeps today’s plan and completed sets when the dashboard refreshes again', async () => {
     const squats = givenAnExerciseWithThisName('Squats')
     givenACompletedTrainingDay(today, squats)
-    const originalDay = await trainingDayRepo.findLatestOnOrBefore(today)
+    const originalDay = await trainingDayRepo.findLatest()
 
     expect(await whenTheyOpenTheDashboard()).toBe(today)
     expect(await whenTheyOpenTheDashboard()).toBe(today)
 
-    expect(await trainingDayRepo.findLatestOnOrBefore(today)).toBe(originalDay)
+    expect(await trainingDayRepo.findLatest()).toBe(originalDay)
     expect(originalDay?.isComplete).toBe(true)
     expect(originalDay?.repLogs).toHaveLength(2)
     expect(trainingDayRepo.savedTrainingDays).toHaveLength(0)

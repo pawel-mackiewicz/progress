@@ -28,7 +28,7 @@ export class UpdateExerciseUseCase implements UseCase<UpdateExerciseCommand> {
       await this.ensureNameIsAvailable(command)
       const now = this.clock.now()
       const today = toLocalDayKey(now)
-      const trainingDay = await this.trainingDayRepo.findLatestOnOrBefore(today)
+      const trainingDay = await this.trainingDayRepo.findLatest()
 
       if (trainingDay?.day !== today || trainingDay.status !== 'OPEN') {
         throw new TrainingDayNotOpenForTodayError(
