@@ -1,13 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ProgressDatabase } from '@/db'
-import { DexieProgressCommands } from '@/progress/commands'
 import type { LocalDayKey } from '@/progress/date'
 import { DexieProgressQueries } from '@/progress/queries'
+import type { RepIncrement } from '@/progress/types'
+import { AddRepUseCase } from '@/progress/write/exercises/application/AddRepUseCase'
 import { ArchiveExerciseUseCase } from '@/progress/write/exercises/application/ArchiveExerciseUseCase'
 import { PrepareTodayTrainingDayUseCase } from '@/progress/write/exercises/application/PrepareTodayTrainingDayUseCase'
 import { RegisterExerciseUseCase } from '@/progress/write/exercises/application/RegisterExerciseUseCase'
 import { RestoreExerciseUseCase } from '@/progress/write/exercises/application/RestoreExerciseUseCase'
+import { UndoRepUseCase } from '@/progress/write/exercises/application/UndoRepUseCase'
 import { UpdateExerciseUseCase } from '@/progress/write/exercises/application/UpdateExerciseUseCase'
 import { DuplicateExerciseNameError } from '@/progress/write/exercises/domain/Exercise'
 import { TrainingDayNotOpenForTodayError } from '@/progress/write/exercises/domain/TrainingDay'
@@ -35,7 +37,8 @@ describe('a training day saved on the athlete’s device', () => {
   const fixedNow = new Date('2026-08-24T08:00:00.000Z')
   let database: ProgressDatabase
   let databaseName: string
-  let commands: DexieProgressCommands
+  let addRep: AddRepUseCase
+  let undoRep: UndoRepUseCase
   let queries: DexieProgressQueries
   let registerExercise: RegisterExerciseUseCase
   let prepareTodayTrainingDay: PrepareTodayTrainingDayUseCase
@@ -73,6 +76,20 @@ describe('a training day saved on the athlete’s device', () => {
       clock
     )
     const dailyCompletion = new DexieDailyCompletion(database, clock)
+    addRep = new AddRepUseCase(
+      unitOfWork,
+      exerciseRepo,
+      trainingDayRepo,
+      dailyCompletion,
+      idGenerator,
+      clock
+    )
+    undoRep = new UndoRepUseCase(
+      unitOfWork,
+      trainingDayRepo,
+      dailyCompletion,
+      clock
+    )
     updateExercise = new UpdateExerciseUseCase(
       unitOfWork,
       exerciseRepo,
@@ -90,11 +107,6 @@ describe('a training day saved on the athlete’s device', () => {
       unitOfWork,
       exerciseRepo,
       clock
-    )
-    commands = new DexieProgressCommands(
-      database,
-      () => now,
-      () => idGenerator.generate()
     )
     queries = new DexieProgressQueries(database)
   })
@@ -125,12 +137,22 @@ describe('a training day saved on the athlete’s device', () => {
     now = new Date('2026-08-25T08:00:00.000Z')
   }
 
-  async function whenTheAthleteAdds(
+  async function whenTheAthleteAdds(exerciseId: string, amount: RepIncrement) {
+    return addRep.handle({ exerciseId, amount })
+  }
+
+  async function givenTheAthleteAddedOn(
     exerciseId: string,
-    amount: 1 | 5 | 10,
-    day = today
+    amount: RepIncrement,
+    day: LocalDayKey
   ) {
-    return commands.recordReps(exerciseId, amount, day)
+    await database.repLogs.add({
+      id: idGenerator.generate(),
+      exerciseId,
+      day,
+      amount,
+      createdAt: `${day}T08:00:00.000Z`
+    })
   }
 
   async function readDashboard(day = today) {
@@ -310,12 +332,13 @@ describe('a training day saved on the athlete’s device', () => {
     const pushUps = await givenAnExercise('Push-ups', 10)
     const pullUps = await givenAnExercise('Pull-ups', 5)
 
-    const firstClear = await whenTheAthleteAdds(pushUps.id, 10)
-    const perfectDay = await whenTheAthleteAdds(pullUps.id, 5)
+    await whenTheAthleteAdds(pushUps.id, 10)
+
+    expect((await readDashboard()).isDayComplete).toBe(false)
+
+    await whenTheAthleteAdds(pullUps.id, 5)
     const completedDay = await readDashboard()
 
-    expect(firstClear.didEarnDay).toBe(false)
-    expect(perfectDay.didEarnDay).toBe(true)
     expect(completedDay.isDayComplete).toBe(true)
     expect(completedDay.completedDays).toContain(today)
   })
@@ -340,7 +363,7 @@ describe('a training day saved on the athlete’s device', () => {
     const pushUps = await givenAnExercise('Push-ups', 5)
     const reward = await whenTheAthleteAdds(pushUps.id, 5)
 
-    await commands.undoRepLog(reward.repLogId)
+    await undoRep.handle({ repLogId: reward.repLogId })
     const correctedDay = await readDashboard()
 
     expect(correctedDay.exercises[0]?.completedReps).toBe(0)
@@ -440,15 +463,15 @@ describe('a training day saved on the athlete’s device', () => {
     const squats = await givenAnExercise('Squats', 50)
     const pullUps = await givenAnExercise('Pull-ups', 30)
 
-    await whenTheAthleteAdds(pushUps.id, 10, '2026-08-20')
-    await whenTheAthleteAdds(pushUps.id, 5, '2026-08-20')
-    await whenTheAthleteAdds(pushUps.id, 10, '2026-08-21')
-    await whenTheAthleteAdds(pushUps.id, 10, '2026-08-21')
+    await givenTheAthleteAddedOn(pushUps.id, 10, '2026-08-20')
+    await givenTheAthleteAddedOn(pushUps.id, 5, '2026-08-20')
+    await givenTheAthleteAddedOn(pushUps.id, 10, '2026-08-21')
+    await givenTheAthleteAddedOn(pushUps.id, 10, '2026-08-21')
     await whenTheAthleteAdds(pushUps.id, 10)
-    await whenTheAthleteAdds(pushUps.id, 10, '2026-08-25')
-    await whenTheAthleteAdds(pushUps.id, 10, '2026-08-25')
-    await whenTheAthleteAdds(pushUps.id, 10, '2026-08-25')
-    await whenTheAthleteAdds(squats.id, 5, '2026-08-22')
+    await givenTheAthleteAddedOn(pushUps.id, 10, '2026-08-25')
+    await givenTheAthleteAddedOn(pushUps.id, 10, '2026-08-25')
+    await givenTheAthleteAddedOn(pushUps.id, 10, '2026-08-25')
+    await givenTheAthleteAddedOn(squats.id, 5, '2026-08-22')
 
     const dashboard = await readDashboard()
 
@@ -474,11 +497,11 @@ describe('a training day saved on the athlete’s device', () => {
     const pushUps = await givenAnExercise('Push-ups', 40)
     const squats = await givenAnExercise('Squats', 50)
 
-    await whenTheAthleteAdds(pushUps.id, 10, '2026-08-22')
-    await whenTheAthleteAdds(pushUps.id, 10, '2026-08-23')
-    await whenTheAthleteAdds(pushUps.id, 5, '2026-08-23')
+    await givenTheAthleteAddedOn(pushUps.id, 10, '2026-08-22')
+    await givenTheAthleteAddedOn(pushUps.id, 10, '2026-08-23')
+    await givenTheAthleteAddedOn(pushUps.id, 5, '2026-08-23')
     await whenTheAthleteAdds(pushUps.id, 10)
-    await whenTheAthleteAdds(squats.id, 5, '2026-08-22')
+    await givenTheAthleteAddedOn(squats.id, 5, '2026-08-22')
 
     const dashboard = await readDashboard()
 

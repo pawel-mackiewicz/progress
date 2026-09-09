@@ -45,11 +45,6 @@ export type DashboardSnapshot = {
   isDayComplete: boolean
 }
 
-export type RecordRepsResult = {
-  repLogId: string
-  didEarnDay: boolean
-}
-
 export interface ProgressQueries {
   getExercise(id: string): Promise<Exercise | undefined>
   getDashboard(
@@ -57,13 +52,4 @@ export interface ProgressQueries {
     monthStart: LocalDayKey,
     monthEnd: LocalDayKey
   ): Promise<DashboardSnapshot>
-}
-
-export interface ProgressCommands {
-  recordReps(
-    exerciseId: string,
-    amount: RepIncrement,
-    day: LocalDayKey
-  ): Promise<RecordRepsResult>
-  undoRepLog(repLogId: string): Promise<void>
 }

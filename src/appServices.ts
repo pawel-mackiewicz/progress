@@ -1,7 +1,6 @@
 import type { ProgressDatabase } from '@/db'
-import { DexieProgressCommands } from '@/progress/commands'
 import { DexieProgressQueries } from '@/progress/queries'
-import type { ProgressCommands, ProgressQueries } from '@/progress/types'
+import type { ProgressQueries } from '@/progress/types'
 import {
   AddRepUseCase,
   type AddRepResult
@@ -44,7 +43,6 @@ export type AppUseCases = {
 export type AppServices = {
   readonly database: ProgressDatabase
   readonly queries: ProgressQueries
-  readonly commands: ProgressCommands
   readonly useCases: AppUseCases
 }
 
@@ -61,7 +59,6 @@ export function createAppServices(database: ProgressDatabase): AppServices {
   return {
     database,
     queries: new DexieProgressQueries(database),
-    commands: new DexieProgressCommands(database),
     useCases: {
       prepareTodayTrainingDay: new PrepareTodayTrainingDayUseCase(
         unitOfWork,
