@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { AddRepUseCase } from '@/progress/write/exercises/application/AddRepUseCase'
-import { FakeDailyCompletion } from '@/progress/write/exercises/application/ports/DailyCompletionPort'
 import { FakeExerciseRepo } from '@/progress/write/exercises/application/ports/ExerciseRepoPort'
 import { FakeTrainingDayRepo } from '@/progress/write/exercises/application/ports/TrainingDayRepoPort'
 import type { LocalDayKey } from '@/progress/date'
@@ -49,22 +48,6 @@ class StoryTrainingDayRepo extends FakeTrainingDayRepo {
   }
 }
 
-class StoryDailyCompletion extends FakeDailyCompletion {
-  public readonly checksInsideTransaction: boolean[] = []
-
-  public constructor(private readonly unitOfWork: StoryUnitOfWork) {
-    super()
-  }
-
-  public override async awardIfAllGoalsAreComplete(
-    day: LocalDayKey,
-    triggerRepLogId: string | null = null
-  ): Promise<void> {
-    this.checksInsideTransaction.push(this.unitOfWork.isExecuting)
-    await super.awardIfAllGoalsAreComplete(day, triggerRepLogId)
-  }
-}
-
 class StoryIdGenerator implements IdGeneratorPort {
   public generations = 0
 
@@ -81,7 +64,6 @@ describe('an athlete recording a set in today’s training', () => {
   let unitOfWork: StoryUnitOfWork
   let exerciseRepo: FakeExerciseRepo
   let trainingDayRepo: StoryTrainingDayRepo
-  let dailyCompletion: StoryDailyCompletion
   let idGenerator: StoryIdGenerator
   let currentTime: Date
   let useCase: AddRepUseCase
@@ -90,14 +72,12 @@ describe('an athlete recording a set in today’s training', () => {
     unitOfWork = new StoryUnitOfWork()
     exerciseRepo = new FakeExerciseRepo()
     trainingDayRepo = new StoryTrainingDayRepo(unitOfWork)
-    dailyCompletion = new StoryDailyCompletion(unitOfWork)
     idGenerator = new StoryIdGenerator()
     currentTime = now
     useCase = new AddRepUseCase(
       unitOfWork,
       exerciseRepo,
       trainingDayRepo,
-      dailyCompletion,
       idGenerator,
       { now: () => new Date(currentTime) }
     )
@@ -154,10 +134,9 @@ describe('an athlete recording a set in today’s training', () => {
     return useCase.handle({ exerciseId: 'push-ups', amount: 5 })
   }
 
-  function thenNothingWasWrittenOrChecked() {
+  function thenNothingWasWritten() {
     expect(trainingDayRepo.addedRepLogs).toHaveLength(0)
     expect(trainingDayRepo.savedTrainingDays).toHaveLength(0)
-    expect(dailyCompletion.checks).toHaveLength(0)
   }
 
   it('adds earlier sets for that exercise and leaves other exercises out of its progress', async () => {
@@ -178,7 +157,8 @@ describe('an athlete recording a set in today’s training', () => {
       repLogId: 'afternoon-set',
       dailyGoal: 40,
       completedReps: 15,
-      isCompleted: false
+      isCompleted: false,
+      didCompleteDay: false
     })
     expect(trainingDayRepo.addedRepLogs[0]?.toSnapshot()).toEqual({
       id: 'afternoon-set',
@@ -191,20 +171,24 @@ describe('an athlete recording a set in today’s training', () => {
       (await trainingDayRepo.findLatest())?.getExerciseProgress('push-ups')
     ).toEqual({ dailyGoal: 40, completedReps: 15, isCompleted: false })
     expect(trainingDayRepo.savedTrainingDays).toHaveLength(0)
-    expect(dailyCompletion.checks).toEqual([
-      { day: today, triggerRepLogId: 'afternoon-set' }
-    ])
     expect(unitOfWork.executions).toBe(1)
     expect(trainingDayRepo.additionsInsideTransaction).toEqual([true])
-    expect(dailyCompletion.checksInsideTransaction).toEqual([true])
   })
 
   it.each([
-    { earlierReps: 5 as const, completedReps: 10 },
-    { earlierReps: 10 as const, completedReps: 15 }
+    {
+      earlierReps: 5 as const,
+      completedReps: 10,
+      didCompleteDay: true
+    },
+    {
+      earlierReps: 10 as const,
+      completedReps: 15,
+      didCompleteDay: false
+    }
   ])(
-    'marks $completedReps reps complete when the daily goal is 10',
-    async ({ earlierReps, completedReps }) => {
+    'marks $completedReps reps complete and reports whether this set cleared the day',
+    async ({ earlierReps, completedReps, didCompleteDay }) => {
       const pushUps = givenAnExercise('push-ups', 10)
       givenATrainingDay(
         today,
@@ -215,7 +199,8 @@ describe('an athlete recording a set in today’s training', () => {
       await expect(whenTheyAddFivePushUps()).resolves.toMatchObject({
         dailyGoal: 10,
         completedReps,
-        isCompleted: true
+        isCompleted: true,
+        didCompleteDay
       })
     }
   )
@@ -225,7 +210,7 @@ describe('an athlete recording a set in today’s training', () => {
       ExerciseNotFoundError
     )
 
-    thenNothingWasWrittenOrChecked()
+    thenNothingWasWritten()
   })
 
   it('keeps archived exercises out of today’s rep story', async () => {
@@ -235,7 +220,7 @@ describe('an athlete recording a set in today’s training', () => {
       ExerciseArchivedError
     )
 
-    thenNothingWasWrittenOrChecked()
+    thenNothingWasWritten()
   })
 
   it('does not add a set for an exercise outside today’s plan', async () => {
@@ -247,7 +232,7 @@ describe('an athlete recording a set in today’s training', () => {
       ExerciseNotInTrainingDayError
     )
 
-    thenNothingWasWrittenOrChecked()
+    thenNothingWasWritten()
   })
 
   it('asks the athlete to prepare a training day before recording reps', async () => {
@@ -257,7 +242,7 @@ describe('an athlete recording a set in today’s training', () => {
       TrainingDayNotOpenForTodayError
     )
 
-    thenNothingWasWrittenOrChecked()
+    thenNothingWasWritten()
   })
 
   it('rejects a stale training day left open overnight', async () => {
@@ -268,7 +253,7 @@ describe('an athlete recording a set in today’s training', () => {
       TrainingDayNotOpenForTodayError
     )
 
-    thenNothingWasWrittenOrChecked()
+    thenNothingWasWritten()
   })
 
   it('refuses to change today after it has been finalized', async () => {
@@ -279,6 +264,6 @@ describe('an athlete recording a set in today’s training', () => {
       TrainingDayNotOpenForTodayError
     )
 
-    thenNothingWasWrittenOrChecked()
+    thenNothingWasWritten()
   })
 })

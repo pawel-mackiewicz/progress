@@ -1,4 +1,3 @@
-import type { DailyCompletionPort } from '@/progress/write/exercises/application/ports/DailyCompletionPort'
 import type { TrainingDayRepoPort } from '@/progress/write/exercises/application/ports/TrainingDayRepoPort'
 import type { UndoRepCommand } from '@/progress/write/exercises/application/requests/UndoRepCommand'
 import { toLocalDayKey } from '@/progress/date'
@@ -11,7 +10,6 @@ export class UndoRepUseCase implements UseCase<UndoRepCommand> {
   public constructor(
     private readonly unitOfWork: UnitOfWork,
     private readonly trainingDayRepo: TrainingDayRepoPort,
-    private readonly dailyCompletion: DailyCompletionPort,
     private readonly clock: ClockPort
   ) {}
 
@@ -29,7 +27,6 @@ export class UndoRepUseCase implements UseCase<UndoRepCommand> {
       trainingDay.undoRepLog(command.repLogId)
 
       await this.trainingDayRepo.removeRepLog(command.repLogId)
-      await this.dailyCompletion.reconcileAfterRepUndo(today, command.repLogId)
     })
   }
 }

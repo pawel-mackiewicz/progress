@@ -7,6 +7,8 @@ import type {
   ProgressQueries,
   RepLog
 } from '@/progress/types'
+import { RepLog as RepLogEntity } from '@/progress/write/exercises/domain/RepLog'
+import { TrainingDay } from '@/progress/write/exercises/domain/TrainingDay'
 
 function sortExercises(exercises: Exercise[]) {
   return [...exercises].sort((first, second) =>
@@ -72,25 +74,16 @@ export class DexieProgressQueries implements ProgressQueries {
     monthStart: LocalDayKey,
     monthEnd: LocalDayKey
   ): Promise<DashboardSnapshot> {
-    const [
-      allExercises,
-      repLogs,
-      visibleCompletions,
-      currentCompletion,
-      visibleOutcomes
-    ] = await Promise.all([
-      this.database.exercises.toArray(),
-      this.database.repLogs.where('day').belowOrEqual(day).toArray(),
-      this.database.dailyCompletions
-        .where('day')
-        .between(monthStart, monthEnd, true, true)
-        .toArray(),
-      this.database.dailyCompletions.get(day),
-      this.database.dayOutcomes
-        .where('day')
-        .between(monthStart, monthEnd, true, true)
-        .toArray()
-    ])
+    const [allExercises, repLogs, currentTrainingDay, visibleOutcomes] =
+      await Promise.all([
+        this.database.exercises.toArray(),
+        this.database.repLogs.where('day').belowOrEqual(day).toArray(),
+        this.database.trainingDays.get(day),
+        this.database.dayOutcomes
+          .where('day')
+          .between(monthStart, monthEnd, true, true)
+          .toArray()
+      ])
 
     const activeExercises = sortExercises(
       allExercises.filter((exercise) => !exercise.archivedAt)
@@ -98,6 +91,26 @@ export class DexieProgressQueries implements ProgressQueries {
     const todayTotals = sumRepsByExercise(
       repLogs.filter((repLog) => repLog.day === day)
     )
+    const isDayComplete = currentTrainingDay
+      ? TrainingDay.restore(
+          currentTrainingDay,
+          repLogs
+            .filter((repLog) => repLog.day === day)
+            .map(RepLogEntity.restore)
+        ).isComplete
+      : false
+    const completedDays = visibleOutcomes
+      .filter((outcome) => outcome.result === 'COMPLETED')
+      .map((outcome) => outcome.day)
+
+    if (
+      isDayComplete &&
+      monthStart <= day &&
+      day <= monthEnd &&
+      !completedDays.includes(day)
+    ) {
+      completedDays.push(day)
+    }
     const yesterday = shiftLocalDay(day, -1)
     const yesterdayTotals = sumRepsByExercise(
       repLogs.filter((repLog) => repLog.day === yesterday)
@@ -131,11 +144,11 @@ export class DexieProgressQueries implements ProgressQueries {
         .sort((first, second) =>
           String(second.archivedAt).localeCompare(String(first.archivedAt))
         ),
-      completedDays: visibleCompletions.map((completion) => completion.day),
+      completedDays,
       protectedDays: visibleOutcomes
         .filter((outcome) => outcome.result === 'SHIELDED')
         .map((outcome) => outcome.day),
-      isDayComplete: Boolean(currentCompletion)
+      isDayComplete
     }
   }
 }

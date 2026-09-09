@@ -21,12 +21,6 @@ export type RepLog = {
   createdAt: string
 }
 
-export type DailyCompletion = {
-  day: LocalDayKey
-  earnedAt: string
-  triggerRepLogId: string | null
-}
-
 export type DashboardExercise = Exercise & {
   completedReps: number
   remainingReps: number

@@ -32,8 +32,12 @@ describe('the exercise mission form', () => {
       addRep: { handle: vi.fn() },
       undoRep: { handle: vi.fn().mockResolvedValue(undefined) },
       registerExercise: { handle: vi.fn().mockResolvedValue(undefined) },
-      updateExercise: { handle: vi.fn().mockResolvedValue(undefined) },
-      archiveExercise: { handle: vi.fn().mockResolvedValue(undefined) },
+      updateExercise: {
+        handle: vi.fn().mockResolvedValue({ didCompleteDay: false })
+      },
+      archiveExercise: {
+        handle: vi.fn().mockResolvedValue({ didCompleteDay: false })
+      },
       restoreExercise: { handle: vi.fn().mockResolvedValue(undefined) }
     }
     queries = {
@@ -114,6 +118,32 @@ describe('the exercise mission form', () => {
     expect(push).toHaveBeenCalledWith('/')
   })
 
+  it('carries a goal-correction celebration back to the dashboard', async () => {
+    route.params = { exerciseId: 'push-ups' }
+    vi.mocked(queries.getExercise).mockResolvedValue({
+      id: 'push-ups',
+      name: 'Push-ups',
+      dailyGoal: 40,
+      createdAt: '2026-08-24T08:00:00.000Z',
+      updatedAt: '2026-08-24T08:00:00.000Z',
+      archivedAt: null
+    })
+    vi.mocked(useCases.updateExercise.handle).mockResolvedValueOnce({
+      didCompleteDay: true
+    })
+    const form = openForm()
+    await flushPromises()
+
+    await form.get('input[type="number"]').setValue('10')
+    await form.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(push).toHaveBeenCalledWith({
+      path: '/',
+      state: { celebrateDayCompletion: true }
+    })
+  })
+
   it('keeps the draft and shows a save error when today has not been prepared', async () => {
     vi.mocked(useCases.registerExercise.handle).mockRejectedValueOnce(
       new TrainingDayNotOpenForTodayError()
@@ -167,5 +197,31 @@ describe('the exercise mission form', () => {
       day: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/)
     })
     expect(push).toHaveBeenCalledWith('/')
+  })
+
+  it('carries an archive-triggered celebration back to the dashboard', async () => {
+    route.params = { exerciseId: 'pull-ups' }
+    vi.mocked(queries.getExercise).mockResolvedValue({
+      id: 'pull-ups',
+      name: 'Pull-ups',
+      dailyGoal: 40,
+      createdAt: '2026-08-24T08:00:00.000Z',
+      updatedAt: '2026-08-24T08:00:00.000Z',
+      archivedAt: null
+    })
+    vi.mocked(useCases.archiveExercise.handle).mockResolvedValueOnce({
+      didCompleteDay: true
+    })
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const form = openForm()
+    await flushPromises()
+
+    await form.get('.exercise-form__archive').trigger('click')
+    await flushPromises()
+
+    expect(push).toHaveBeenCalledWith({
+      path: '/',
+      state: { celebrateDayCompletion: true }
+    })
   })
 })

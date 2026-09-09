@@ -106,5 +106,8 @@ describe('an athlete’s progression stored on their device', () => {
       availableShields: 0,
       completedDaysTowardNextShield: 0
     })
+    expect(database.tables.map((table) => table.name)).not.toContain(
+      'dailyCompletions'
+    )
   })
 })

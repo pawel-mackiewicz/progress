@@ -25,6 +25,17 @@ const formError = ref('')
 const loading = ref(false)
 const saving = ref(false)
 
+function returnHome(didCompleteDay = false) {
+  if (!didCompleteDay) {
+    return router.push('/')
+  }
+
+  return router.push({
+    path: '/',
+    state: { celebrateDayCompletion: true }
+  })
+}
+
 const exerciseId = computed(() => {
   const routeParam = route.params.exerciseId
 
@@ -55,17 +66,20 @@ async function saveExercise() {
   }
 
   try {
+    let didCompleteDay = false
+
     if (exerciseId.value) {
-      await useCases.updateExercise.handle({
+      const result = await useCases.updateExercise.handle({
         id: exerciseId.value,
         ...draft,
         day: toLocalDayKey()
       })
+      didCompleteDay = result.didCompleteDay
     } else {
       await useCases.registerExercise.handle(draft)
     }
 
-    await router.push('/')
+    await returnHome(didCompleteDay)
   } catch (error) {
     formError.value =
       error instanceof DuplicateExerciseNameError
@@ -88,11 +102,11 @@ async function archiveExercise() {
   formError.value = ''
 
   try {
-    await useCases.archiveExercise.handle({
+    const result = await useCases.archiveExercise.handle({
       id: exerciseId.value,
       day: toLocalDayKey()
     })
-    await router.push('/')
+    await returnHome(result.didCompleteDay)
   } catch {
     formError.value = t('form.saveError')
   } finally {

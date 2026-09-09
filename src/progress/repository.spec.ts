@@ -13,7 +13,6 @@ import { UndoRepUseCase } from '@/progress/write/exercises/application/UndoRepUs
 import { UpdateExerciseUseCase } from '@/progress/write/exercises/application/UpdateExerciseUseCase'
 import { DuplicateExerciseNameError } from '@/progress/write/exercises/domain/Exercise'
 import { TrainingDayNotOpenForTodayError } from '@/progress/write/exercises/domain/TrainingDay'
-import { DexieDailyCompletion } from '@/progress/write/exercises/infra/db/DexieDailyCompletion'
 import { DexieDayOutcomeRepo } from '@/progress/write/exercises/infra/db/DexieDayOutcomeRepo'
 import { DexieExerciseRepo } from '@/progress/write/exercises/infra/db/DexieExerciseRepo'
 import { DexiePlayerStatsRepo } from '@/progress/write/exercises/infra/db/DexiePlayerStatsRepo'
@@ -75,33 +74,24 @@ describe('a training day saved on the athlete’s device', () => {
       idGenerator,
       clock
     )
-    const dailyCompletion = new DexieDailyCompletion(database, clock)
     addRep = new AddRepUseCase(
       unitOfWork,
       exerciseRepo,
       trainingDayRepo,
-      dailyCompletion,
       idGenerator,
       clock
     )
-    undoRep = new UndoRepUseCase(
-      unitOfWork,
-      trainingDayRepo,
-      dailyCompletion,
-      clock
-    )
+    undoRep = new UndoRepUseCase(unitOfWork, trainingDayRepo, clock)
     updateExercise = new UpdateExerciseUseCase(
       unitOfWork,
       exerciseRepo,
       trainingDayRepo,
-      dailyCompletion,
       clock
     )
     archiveExercise = new ArchiveExerciseUseCase(
       unitOfWork,
       exerciseRepo,
       trainingDayRepo,
-      dailyCompletion,
       clock
     )
     restoreExercise = new RestoreExerciseUseCase(
@@ -373,7 +363,7 @@ describe('a training day saved on the athlete’s device', () => {
     expect(correctedDay.completedDays).not.toContain(today)
   })
 
-  it('never removes an earned calendar win when goals later change', async () => {
+  it('reopens today when the athlete adds more work to its plan', async () => {
     const pushUps = await givenAnExercise('Push-ups', 5)
     await whenTheAthleteAdds(pushUps.id, 5)
 
@@ -389,8 +379,8 @@ describe('a training day saved on the athlete’s device', () => {
     expect(changedDay.exercises.map((exercise) => exercise.isComplete)).toEqual(
       [false, false]
     )
-    expect(changedDay.isDayComplete).toBe(true)
-    expect(changedDay.completedDays).toContain(today)
+    expect(changedDay.isDayComplete).toBe(false)
+    expect(changedDay.completedDays).not.toContain(today)
   })
 
   it('awards today when a corrected goal matches the work already done', async () => {
@@ -457,7 +447,10 @@ describe('a training day saved on the athlete’s device', () => {
       { day: '2026-09-01', result: 'SHIELDED' }
     ])
 
-    expect((await readDashboard()).protectedDays).toEqual(['2026-08-21'])
+    const dashboard = await readDashboard()
+
+    expect(dashboard.completedDays).toEqual(['2026-08-20'])
+    expect(dashboard.protectedDays).toEqual(['2026-08-21'])
   })
 
   it('shows the best total result from earlier training days', async () => {

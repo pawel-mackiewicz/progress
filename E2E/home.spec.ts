@@ -301,22 +301,15 @@ async function replaceProgressHistory(
 
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction(
-        ['dailyCompletions', 'dayOutcomes', 'playerStats'],
+        ['dayOutcomes', 'playerStats'],
         'readwrite'
       )
-      const completions = transaction.objectStore('dailyCompletions')
       const outcomes = transaction.objectStore('dayOutcomes')
       const playerStats = transaction.objectStore('playerStats')
-      completions.clear()
       outcomes.clear()
       playerStats.clear()
 
       for (const offset of progressHistory.completedDayOffsets) {
-        completions.put({
-          day: shiftedDay(offset),
-          earnedAt: new Date().toISOString(),
-          triggerRepLogId: null
-        })
         outcomes.put({ day: shiftedDay(offset), result: 'COMPLETED' })
       }
 

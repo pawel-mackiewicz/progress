@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { UndoRepUseCase } from '@/progress/write/exercises/application/UndoRepUseCase'
-import { FakeDailyCompletion } from '@/progress/write/exercises/application/ports/DailyCompletionPort'
 import { FakeTrainingDayRepo } from '@/progress/write/exercises/application/ports/TrainingDayRepoPort'
 import type { LocalDayKey } from '@/progress/date'
 import { Exercise } from '@/progress/write/exercises/domain/Exercise'
@@ -42,38 +41,20 @@ class StoryTrainingDayRepo extends FakeTrainingDayRepo {
   }
 }
 
-class StoryDailyCompletion extends FakeDailyCompletion {
-  public readonly reconciliationsInsideTransaction: boolean[] = []
-
-  public constructor(private readonly unitOfWork: StoryUnitOfWork) {
-    super()
-  }
-
-  public override async reconcileAfterRepUndo(
-    day: LocalDayKey,
-    repLogId: string
-  ): Promise<void> {
-    this.reconciliationsInsideTransaction.push(this.unitOfWork.isExecuting)
-    await super.reconcileAfterRepUndo(day, repLogId)
-  }
-}
-
 describe('an athlete undoing a mistaken set from today’s training', () => {
   const today = '2026-08-25' as const
   const yesterday = '2026-08-24' as const
   const now = new Date('2026-08-25T09:30:00.000Z')
   let unitOfWork: StoryUnitOfWork
   let trainingDayRepo: StoryTrainingDayRepo
-  let dailyCompletion: StoryDailyCompletion
   let currentTime: Date
   let useCase: UndoRepUseCase
 
   beforeEach(() => {
     unitOfWork = new StoryUnitOfWork()
     trainingDayRepo = new StoryTrainingDayRepo(unitOfWork)
-    dailyCompletion = new StoryDailyCompletion(unitOfWork)
     currentTime = now
-    useCase = new UndoRepUseCase(unitOfWork, trainingDayRepo, dailyCompletion, {
+    useCase = new UndoRepUseCase(unitOfWork, trainingDayRepo, {
       now: () => new Date(currentTime)
     })
   })
@@ -117,12 +98,11 @@ describe('an athlete undoing a mistaken set from today’s training', () => {
     return useCase.handle({ repLogId: 'afternoon-set' })
   }
 
-  function thenNothingWasRemovedOrReconciled() {
+  function thenNothingWasRemoved() {
     expect(trainingDayRepo.removedRepLogIds).toHaveLength(0)
-    expect(dailyCompletion.repUndos).toHaveLength(0)
   }
 
-  it('removes only that set and rechecks the reward in the same transaction', async () => {
+  it('removes only that set in the same transaction', async () => {
     givenATrainingDay(today, [
       aRecordedSet('morning-set', 10),
       aRecordedSet('afternoon-set', 5)
@@ -133,12 +113,8 @@ describe('an athlete undoing a mistaken set from today’s training', () => {
     expect(
       (await trainingDayRepo.findLatest())?.repLogs.map((repLog) => repLog.id)
     ).toEqual(['morning-set'])
-    expect(dailyCompletion.repUndos).toEqual([
-      { day: today, repLogId: 'afternoon-set' }
-    ])
     expect(unitOfWork.executions).toBe(1)
     expect(trainingDayRepo.removalsInsideTransaction).toEqual([true])
-    expect(dailyCompletion.reconciliationsInsideTransaction).toEqual([true])
   })
 
   it('reports when the set is not part of today’s open rep story', async () => {
@@ -148,7 +124,7 @@ describe('an athlete undoing a mistaken set from today’s training', () => {
       RepLogNotInOpenDayError
     )
 
-    thenNothingWasRemovedOrReconciled()
+    thenNothingWasRemoved()
   })
 
   it('asks the athlete to prepare today before undoing reps', async () => {
@@ -156,7 +132,7 @@ describe('an athlete undoing a mistaken set from today’s training', () => {
       TrainingDayNotOpenForTodayError
     )
 
-    thenNothingWasRemovedOrReconciled()
+    thenNothingWasRemoved()
   })
 
   it('rejects an undo left open overnight', async () => {
@@ -167,7 +143,7 @@ describe('an athlete undoing a mistaken set from today’s training', () => {
       TrainingDayNotOpenForTodayError
     )
 
-    thenNothingWasRemovedOrReconciled()
+    thenNothingWasRemoved()
   })
 
   it('keeps a finalized training day unchanged', async () => {
@@ -177,6 +153,6 @@ describe('an athlete undoing a mistaken set from today’s training', () => {
       TrainingDayNotOpenForTodayError
     )
 
-    thenNothingWasRemovedOrReconciled()
+    thenNothingWasRemoved()
   })
 })

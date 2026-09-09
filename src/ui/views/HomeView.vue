@@ -139,7 +139,6 @@ async function addReps(
   const exerciseWasIncomplete = !snapshot.value?.exercises.find(
     (exercise) => exercise.id === exerciseId
   )?.isComplete
-  const dayWasIncomplete = !snapshot.value?.isDayComplete
   const exerciseOrder = visibleExercises.value.map((exercise) => exercise.id)
 
   try {
@@ -158,7 +157,7 @@ async function addReps(
 
     await loadSnapshot()
 
-    if (dayWasIncomplete && snapshot.value?.isDayComplete) {
+    if (result.didCompleteDay) {
       celebrate()
     }
 
@@ -246,6 +245,19 @@ function celebrate() {
   }
 }
 
+function consumeNavigationCelebration() {
+  const state = window.history.state as Record<string, unknown> | null
+
+  if (state?.celebrateDayCompletion !== true) {
+    return false
+  }
+
+  const nextState = { ...state }
+  delete nextState.celebrateDayCompletion
+  window.history.replaceState(nextState, '')
+  return true
+}
+
 function scheduleMidnightRefresh() {
   clearTimeout(midnightTimer)
   const nextMidnight = new Date()
@@ -283,7 +295,13 @@ function refreshAfterVisibilityChange() {
 }
 
 onMounted(() => {
-  void loadSnapshot()
+  const celebrateAfterLoad = consumeNavigationCelebration()
+
+  void loadSnapshot().then(() => {
+    if (celebrateAfterLoad) {
+      celebrate()
+    }
+  })
   scheduleMidnightRefresh()
   document.addEventListener('visibilitychange', refreshAfterVisibilityChange)
 })

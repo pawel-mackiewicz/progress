@@ -1,4 +1,3 @@
-import type { DailyCompletionPort } from '@/progress/write/exercises/application/ports/DailyCompletionPort'
 import type { ExerciseRepoPort } from '@/progress/write/exercises/application/ports/ExerciseRepoPort'
 import type { TrainingDayRepoPort } from '@/progress/write/exercises/application/ports/TrainingDayRepoPort'
 import type { AddRepCommand } from '@/progress/write/exercises/application/requests/AddRepCommand'
@@ -18,6 +17,7 @@ export type AddRepResult = {
   dailyGoal: number
   completedReps: number
   isCompleted: boolean
+  didCompleteDay: boolean
 }
 
 export class AddRepUseCase implements UseCase<AddRepCommand, AddRepResult> {
@@ -25,7 +25,6 @@ export class AddRepUseCase implements UseCase<AddRepCommand, AddRepResult> {
     private readonly unitOfWork: UnitOfWork,
     private readonly exerciseRepo: ExerciseRepoPort,
     private readonly trainingDayRepo: TrainingDayRepoPort,
-    private readonly dailyCompletion: DailyCompletionPort,
     private readonly idGenerator: IdGeneratorPort,
     private readonly clock: ClockPort
   ) {}
@@ -66,10 +65,11 @@ export class AddRepUseCase implements UseCase<AddRepCommand, AddRepResult> {
       const progress = updatedTrainingDay.getExerciseProgress(
         command.exerciseId
       )
-      await this.dailyCompletion.awardIfAllGoalsAreComplete(today, repLog.id)
 
       return {
         repLogId: repLog.id,
+        didCompleteDay:
+          !trainingDay.isComplete && updatedTrainingDay.isComplete,
         ...progress
       }
     })

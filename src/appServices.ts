@@ -5,7 +5,10 @@ import {
   AddRepUseCase,
   type AddRepResult
 } from '@/progress/write/exercises/application/AddRepUseCase'
-import { ArchiveExerciseUseCase } from '@/progress/write/exercises/application/ArchiveExerciseUseCase'
+import {
+  ArchiveExerciseUseCase,
+  type ArchiveExerciseResult
+} from '@/progress/write/exercises/application/ArchiveExerciseUseCase'
 import {
   PrepareTodayTrainingDayUseCase,
   type PreparedTodayTrainingDay
@@ -13,14 +16,16 @@ import {
 import { RegisterExerciseUseCase } from '@/progress/write/exercises/application/RegisterExerciseUseCase'
 import { RestoreExerciseUseCase } from '@/progress/write/exercises/application/RestoreExerciseUseCase'
 import { UndoRepUseCase } from '@/progress/write/exercises/application/UndoRepUseCase'
-import { UpdateExerciseUseCase } from '@/progress/write/exercises/application/UpdateExerciseUseCase'
+import {
+  UpdateExerciseUseCase,
+  type UpdateExerciseResult
+} from '@/progress/write/exercises/application/UpdateExerciseUseCase'
 import type { AddRepCommand } from '@/progress/write/exercises/application/requests/AddRepCommand'
 import type { ArchiveExerciseCommand } from '@/progress/write/exercises/application/requests/ArchiveExerciseCommand'
 import type { RegisterExerciseCommand } from '@/progress/write/exercises/application/requests/RegisterExerciseCommand'
 import type { RestoreExerciseCommand } from '@/progress/write/exercises/application/requests/RestoreExerciseCommand'
 import type { UndoRepCommand } from '@/progress/write/exercises/application/requests/UndoRepCommand'
 import type { UpdateExerciseCommand } from '@/progress/write/exercises/application/requests/UpdateExerciseCommand'
-import { DexieDailyCompletion } from '@/progress/write/exercises/infra/db/DexieDailyCompletion'
 import { DexieDayOutcomeRepo } from '@/progress/write/exercises/infra/db/DexieDayOutcomeRepo'
 import { DexieExerciseRepo } from '@/progress/write/exercises/infra/db/DexieExerciseRepo'
 import { DexiePlayerStatsRepo } from '@/progress/write/exercises/infra/db/DexiePlayerStatsRepo'
@@ -35,8 +40,11 @@ export type AppUseCases = {
   readonly addRep: UseCase<AddRepCommand, AddRepResult>
   readonly undoRep: UseCase<UndoRepCommand>
   readonly registerExercise: UseCase<RegisterExerciseCommand>
-  readonly updateExercise: UseCase<UpdateExerciseCommand>
-  readonly archiveExercise: UseCase<ArchiveExerciseCommand>
+  readonly updateExercise: UseCase<UpdateExerciseCommand, UpdateExerciseResult>
+  readonly archiveExercise: UseCase<
+    ArchiveExerciseCommand,
+    ArchiveExerciseResult
+  >
   readonly restoreExercise: UseCase<RestoreExerciseCommand>
 }
 
@@ -54,7 +62,6 @@ export function createAppServices(database: ProgressDatabase): AppServices {
   const dayOutcomeRepo = new DexieDayOutcomeRepo(database)
   const idGenerator = new IdGenerator()
   const clock = new SystemClock()
-  const dailyCompletion = new DexieDailyCompletion(database, clock)
 
   return {
     database,
@@ -72,16 +79,10 @@ export function createAppServices(database: ProgressDatabase): AppServices {
         unitOfWork,
         exerciseRepo,
         trainingDayRepo,
-        dailyCompletion,
         idGenerator,
         clock
       ),
-      undoRep: new UndoRepUseCase(
-        unitOfWork,
-        trainingDayRepo,
-        dailyCompletion,
-        clock
-      ),
+      undoRep: new UndoRepUseCase(unitOfWork, trainingDayRepo, clock),
       registerExercise: new RegisterExerciseUseCase(
         unitOfWork,
         exerciseRepo,
@@ -93,14 +94,12 @@ export function createAppServices(database: ProgressDatabase): AppServices {
         unitOfWork,
         exerciseRepo,
         trainingDayRepo,
-        dailyCompletion,
         clock
       ),
       archiveExercise: new ArchiveExerciseUseCase(
         unitOfWork,
         exerciseRepo,
         trainingDayRepo,
-        dailyCompletion,
         clock
       ),
       restoreExercise: new RestoreExerciseUseCase(

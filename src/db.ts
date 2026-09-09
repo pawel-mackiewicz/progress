@@ -1,14 +1,13 @@
 import Dexie, { type EntityTable, type Table } from 'dexie'
 
 import type {
-  PersistedDailyCompletion,
   PersistedDayOutcome,
   PersistedExercise,
   PersistedPlayerStats,
   PersistedRepLog,
   PersistedTrainingDay
 } from '@/progress/infra/db/PersistedProgress'
-import { shiftLocalDay, toLocalDayKey } from '@/progress/date'
+import { shiftLocalDay, toLocalDayKey, type LocalDayKey } from '@/progress/date'
 import { DayOutcome } from '@/progress/write/exercises/domain/DayOutcome'
 import { PlayerStats } from '@/progress/write/exercises/domain/PlayerStats'
 
@@ -17,7 +16,6 @@ export const PLAYER_STATS_KEY = 'current'
 export class ProgressDatabase extends Dexie {
   exercises!: EntityTable<PersistedExercise, 'id'>
   repLogs!: EntityTable<PersistedRepLog, 'id'>
-  dailyCompletions!: EntityTable<PersistedDailyCompletion, 'day'>
   trainingDays!: EntityTable<PersistedTrainingDay, 'day'>
   dayOutcomes!: EntityTable<PersistedDayOutcome, 'day'>
   playerStats!: Table<PersistedPlayerStats, string>
@@ -42,7 +40,7 @@ export class ProgressDatabase extends Dexie {
       })
       .upgrade(async (transaction) => {
         const completions = await transaction
-          .table<PersistedDailyCompletion>('dailyCompletions')
+          .table<{ day: LocalDayKey }>('dailyCompletions')
           .toArray()
         const yesterday = shiftLocalDay(toLocalDayKey(now()), -1)
         const completedDays = new Set(
@@ -75,5 +73,9 @@ export class ProgressDatabase extends Dexie {
           .table<PersistedPlayerStats, string>('playerStats')
           .put(stats.toSnapshot(), PLAYER_STATS_KEY)
       })
+
+    this.version(4).stores({
+      dailyCompletions: null
+    })
   }
 }

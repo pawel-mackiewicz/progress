@@ -90,8 +90,12 @@ describe('today’s arcade training dashboard', () => {
       addRep: { handle: vi.fn() },
       undoRep: { handle: vi.fn().mockResolvedValue(undefined) },
       registerExercise: { handle: vi.fn().mockResolvedValue(undefined) },
-      updateExercise: { handle: vi.fn().mockResolvedValue(undefined) },
-      archiveExercise: { handle: vi.fn().mockResolvedValue(undefined) },
+      updateExercise: {
+        handle: vi.fn().mockResolvedValue({ didCompleteDay: false })
+      },
+      archiveExercise: {
+        handle: vi.fn().mockResolvedValue({ didCompleteDay: false })
+      },
       restoreExercise: { handle: vi.fn().mockResolvedValue(undefined) }
     }
     queries = {
@@ -101,6 +105,7 @@ describe('today’s arcade training dashboard', () => {
   })
 
   afterEach(() => {
+    window.history.replaceState({}, '')
     vi.useRealTimers()
     vi.restoreAllMocks()
   })
@@ -267,7 +272,8 @@ describe('today’s arcade training dashboard', () => {
       repLogId: 'clearing-set',
       dailyGoal: 10,
       completedReps: 10,
-      isCompleted: true
+      isCompleted: true,
+      didCompleteDay: false
     })
     const dashboard = openDashboard()
     await flushPromises()
@@ -491,7 +497,8 @@ describe('today’s arcade training dashboard', () => {
       repLogId: 'winning-set',
       dailyGoal: 10,
       completedReps: 10,
-      isCompleted: true
+      isCompleted: true,
+      didCompleteDay: true
     })
     const dashboard = openDashboard()
     await flushPromises()
@@ -518,6 +525,16 @@ describe('today’s arcade training dashboard', () => {
     )
   })
 
+  it('shows a perfect-day reward carried back from exercise maintenance once', async () => {
+    window.history.replaceState({ celebrateDayCompletion: true }, '')
+
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    expect(dashboard.text()).toContain('Quest complete!')
+    expect(window.history.state.celebrateDayCompletion).toBeUndefined()
+  })
+
   it('lets the athlete immediately undo the last mistaken set', async () => {
     const activeDay = snapshot({
       exercises: [
@@ -542,7 +559,8 @@ describe('today’s arcade training dashboard', () => {
       repLogId: 'mistaken-set',
       dailyGoal: 20,
       completedReps: 15,
-      isCompleted: false
+      isCompleted: false,
+      didCompleteDay: false
     })
     const dashboard = openDashboard()
     await flushPromises()

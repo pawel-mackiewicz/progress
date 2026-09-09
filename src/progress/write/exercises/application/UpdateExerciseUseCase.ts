@@ -1,4 +1,3 @@
-import type { DailyCompletionPort } from '@/progress/write/exercises/application/ports/DailyCompletionPort'
 import type { ExerciseRepoPort } from '@/progress/write/exercises/application/ports/ExerciseRepoPort'
 import type { TrainingDayRepoPort } from '@/progress/write/exercises/application/ports/TrainingDayRepoPort'
 import type { UpdateExerciseCommand } from '@/progress/write/exercises/application/requests/UpdateExerciseCommand'
@@ -13,17 +12,25 @@ import type { ClockPort } from '@/progress/write/shared/ClockPort'
 import type { UnitOfWork } from '@/progress/write/shared/UnitOfWork'
 import type { UseCase } from '@/progress/write/shared/UseCase'
 
-export class UpdateExerciseUseCase implements UseCase<UpdateExerciseCommand> {
+export type UpdateExerciseResult = {
+  didCompleteDay: boolean
+}
+
+export class UpdateExerciseUseCase implements UseCase<
+  UpdateExerciseCommand,
+  UpdateExerciseResult
+> {
   public constructor(
     private readonly unitOfWork: UnitOfWork,
     private readonly exerciseRepo: ExerciseRepoPort,
     private readonly trainingDayRepo: TrainingDayRepoPort,
-    private readonly dailyCompletion: DailyCompletionPort,
     private readonly clock: ClockPort
   ) {}
 
-  public async handle(command: UpdateExerciseCommand): Promise<void> {
-    await this.unitOfWork.execute(async () => {
+  public async handle(
+    command: UpdateExerciseCommand
+  ): Promise<UpdateExerciseResult> {
+    return this.unitOfWork.execute(async () => {
       const exercise = await this.findExercise(command.id)
       await this.ensureNameIsAvailable(command)
       const now = this.clock.now()
@@ -41,7 +48,10 @@ export class UpdateExerciseUseCase implements UseCase<UpdateExerciseCommand> {
 
       await this.exerciseRepo.save(updatedExercise)
       await this.trainingDayRepo.save(updatedTrainingDay)
-      await this.dailyCompletion.awardIfAllGoalsAreComplete(today)
+
+      return {
+        didCompleteDay: !trainingDay.isComplete && updatedTrainingDay.isComplete
+      }
     })
   }
 

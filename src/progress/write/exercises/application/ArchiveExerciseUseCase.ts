@@ -1,4 +1,3 @@
-import type { DailyCompletionPort } from '@/progress/write/exercises/application/ports/DailyCompletionPort'
 import type { ExerciseRepoPort } from '@/progress/write/exercises/application/ports/ExerciseRepoPort'
 import type { TrainingDayRepoPort } from '@/progress/write/exercises/application/ports/TrainingDayRepoPort'
 import type { ArchiveExerciseCommand } from '@/progress/write/exercises/application/requests/ArchiveExerciseCommand'
@@ -11,17 +10,25 @@ import type { ClockPort } from '@/progress/write/shared/ClockPort'
 import type { UnitOfWork } from '@/progress/write/shared/UnitOfWork'
 import type { UseCase } from '@/progress/write/shared/UseCase'
 
-export class ArchiveExerciseUseCase implements UseCase<ArchiveExerciseCommand> {
+export type ArchiveExerciseResult = {
+  didCompleteDay: boolean
+}
+
+export class ArchiveExerciseUseCase implements UseCase<
+  ArchiveExerciseCommand,
+  ArchiveExerciseResult
+> {
   public constructor(
     private readonly unitOfWork: UnitOfWork,
     private readonly exerciseRepo: ExerciseRepoPort,
     private readonly trainingDayRepo: TrainingDayRepoPort,
-    private readonly dailyCompletion: DailyCompletionPort,
     private readonly clock: ClockPort
   ) {}
 
-  public async handle(command: ArchiveExerciseCommand): Promise<void> {
-    await this.unitOfWork.execute(async () => {
+  public async handle(
+    command: ArchiveExerciseCommand
+  ): Promise<ArchiveExerciseResult> {
+    return this.unitOfWork.execute(async () => {
       const exercise = await this.findExercise(command.id)
       const trainingDay = await this.trainingDayRepo.findLatest()
 
@@ -32,10 +39,14 @@ export class ArchiveExerciseUseCase implements UseCase<ArchiveExerciseCommand> {
       }
 
       const archivedExercise = exercise.archive(this.clock.now())
+      const updatedTrainingDay = trainingDay.removeExercise(exercise.id)
 
       await this.exerciseRepo.save(archivedExercise)
-      await this.trainingDayRepo.save(trainingDay.removeExercise(exercise.id))
-      await this.checkWhetherDayIsComplete(command.day)
+      await this.trainingDayRepo.save(updatedTrainingDay)
+
+      return {
+        didCompleteDay: !trainingDay.isComplete && updatedTrainingDay.isComplete
+      }
     })
   }
 
@@ -47,10 +58,5 @@ export class ArchiveExerciseUseCase implements UseCase<ArchiveExerciseCommand> {
     }
 
     return exercise
-  }
-  private async checkWhetherDayIsComplete(
-    day: ArchiveExerciseCommand['day']
-  ): Promise<void> {
-    await this.dailyCompletion.awardIfAllGoalsAreComplete(day)
   }
 }

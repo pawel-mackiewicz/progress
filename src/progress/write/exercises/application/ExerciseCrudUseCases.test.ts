@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { ArchiveExerciseUseCase } from '@/progress/write/exercises/application/ArchiveExerciseUseCase'
-import { FakeDailyCompletion } from '@/progress/write/exercises/application/ports/DailyCompletionPort'
 import { FakeExerciseRepo } from '@/progress/write/exercises/application/ports/ExerciseRepoPort'
 import { FakeTrainingDayRepo } from '@/progress/write/exercises/application/ports/TrainingDayRepoPort'
 import { RestoreExerciseUseCase } from '@/progress/write/exercises/application/RestoreExerciseUseCase'
@@ -36,7 +35,6 @@ describe('an athlete maintaining their exercise plan', () => {
   let unitOfWork: StoryUnitOfWork
   let exerciseRepo: FakeExerciseRepo
   let trainingDayRepo: FakeTrainingDayRepo
-  let dailyCompletion: FakeDailyCompletion
   let clock: ClockPort
   let currentTime: Date
   let updateExercise: UpdateExerciseUseCase
@@ -47,21 +45,18 @@ describe('an athlete maintaining their exercise plan', () => {
     unitOfWork = new StoryUnitOfWork()
     exerciseRepo = new FakeExerciseRepo()
     trainingDayRepo = new FakeTrainingDayRepo()
-    dailyCompletion = new FakeDailyCompletion()
     currentTime = now
     clock = { now: () => currentTime }
     updateExercise = new UpdateExerciseUseCase(
       unitOfWork,
       exerciseRepo,
       trainingDayRepo,
-      dailyCompletion,
       clock
     )
     archiveExercise = new ArchiveExerciseUseCase(
       unitOfWork,
       exerciseRepo,
       trainingDayRepo,
-      dailyCompletion,
       clock
     )
     restoreExercise = new RestoreExerciseUseCase(
@@ -75,12 +70,13 @@ describe('an athlete maintaining their exercise plan', () => {
   function givenAnExercise(
     id: string,
     name: string,
-    archivedAt: Date | null = null
+    archivedAt: Date | null = null,
+    dailyGoal = 40
   ) {
     const exercise = Exercise.restore({
       id,
       name,
-      dailyGoal: 40,
+      dailyGoal,
       createdAt: creationTime.toISOString(),
       updatedAt: creationTime.toISOString(),
       archivedAt: archivedAt?.toISOString() ?? null
@@ -115,7 +111,7 @@ describe('an athlete maintaining their exercise plan', () => {
     })
     givenATrainingDay(today, [pushUps], 'OPEN', [morningSet])
 
-    await updateExercise.handle({
+    const result = await updateExercise.handle({
       id: 'push-ups',
       name: '  Slow push-ups  ',
       dailyGoal: 20,
@@ -144,7 +140,28 @@ describe('an athlete maintaining their exercise plan', () => {
     expect(
       trainingDayRepo.savedTrainingDays[0]?.repLogs.map((repLog) => repLog.id)
     ).toEqual(['morning-set'])
-    expect(dailyCompletion.checkedDays).toEqual([today])
+    expect(result.didCompleteDay).toBe(false)
+  })
+
+  it('reports when correcting a goal completes today’s plan', async () => {
+    const pushUps = givenAnExercise('push-ups', 'Push-ups')
+    const morningSet = RepLog.restore({
+      id: 'morning-set',
+      exerciseId: pushUps.id,
+      day: today,
+      amount: 10,
+      createdAt: now.toISOString()
+    })
+    givenATrainingDay(today, [pushUps], 'OPEN', [morningSet])
+
+    const result = await updateExercise.handle({
+      id: pushUps.id,
+      name: pushUps.name,
+      dailyGoal: 10,
+      day: today
+    })
+
+    expect(result.didCompleteDay).toBe(true)
   })
 
   it('does not let an update borrow another active exercise name', async () => {
@@ -161,7 +178,6 @@ describe('an athlete maintaining their exercise plan', () => {
     ).rejects.toBeInstanceOf(DuplicateExerciseNameError)
 
     expect(exerciseRepo.savedExercises).toHaveLength(0)
-    expect(dailyCompletion.checkedDays).toHaveLength(0)
   })
 
   async function whenTheyUpdatePushUps() {
@@ -211,7 +227,7 @@ describe('an athlete maintaining their exercise plan', () => {
     thenTheUpdateWasNotSaved()
   })
 
-  it('archives an exercise and checks whether the remaining plan completes today', async () => {
+  it('archives an exercise and removes it from today’s plan', async () => {
     const pushUps = givenAnExercise('push-ups', 'Push-ups')
     const squats = givenAnExercise('squats', 'Squats')
     const morningSet = RepLog.restore({
@@ -223,7 +239,10 @@ describe('an athlete maintaining their exercise plan', () => {
     })
     givenATrainingDay(today, [pushUps, squats], 'OPEN', [morningSet])
 
-    await archiveExercise.handle({ id: 'push-ups', day: today })
+    const result = await archiveExercise.handle({
+      id: 'push-ups',
+      day: today
+    })
 
     expect(unitOfWork.executions).toBe(1)
     expect(exerciseRepo.savedExercises[0]?.archivedAt).toEqual(now)
@@ -233,7 +252,27 @@ describe('an athlete maintaining their exercise plan', () => {
     expect(
       trainingDayRepo.savedTrainingDays[0]?.repLogs.map((repLog) => repLog.id)
     ).toEqual(['morning-set'])
-    expect(dailyCompletion.checkedDays).toEqual([today])
+    expect(result.didCompleteDay).toBe(false)
+  })
+
+  it('reports when archiving the last unfinished exercise completes today', async () => {
+    const pushUps = givenAnExercise('push-ups', 'Push-ups', null, 10)
+    const squats = givenAnExercise('squats', 'Squats')
+    const completedSet = RepLog.restore({
+      id: 'completed-set',
+      exerciseId: pushUps.id,
+      day: today,
+      amount: 10,
+      createdAt: now.toISOString()
+    })
+    givenATrainingDay(today, [pushUps, squats], 'OPEN', [completedSet])
+
+    const result = await archiveExercise.handle({
+      id: squats.id,
+      day: today
+    })
+
+    expect(result.didCompleteDay).toBe(true)
   })
 
   it('restores an archived exercise when its name is still available', async () => {
