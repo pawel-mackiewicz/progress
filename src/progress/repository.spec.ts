@@ -332,7 +332,10 @@ describe('a training day saved on the athlete’s device', () => {
     const completedDay = await readDashboard()
 
     expect(completedDay.isDayComplete).toBe(true)
-    expect(completedDay.completedDays).toContain(today)
+    expect(completedDay.dayOutcomes).toContainEqual({
+      day: today,
+      result: 'COMPLETED'
+    })
   })
 
   it('moves cleared quests below every quest that still needs work', async () => {
@@ -360,7 +363,10 @@ describe('a training day saved on the athlete’s device', () => {
 
     expect(correctedDay.exercises[0]?.completedReps).toBe(0)
     expect(correctedDay.isDayComplete).toBe(false)
-    expect(correctedDay.completedDays).not.toContain(today)
+    expect(correctedDay.dayOutcomes).not.toContainEqual({
+      day: today,
+      result: 'COMPLETED'
+    })
   })
 
   it('reopens today when the athlete adds more work to its plan', async () => {
@@ -380,7 +386,10 @@ describe('a training day saved on the athlete’s device', () => {
       [false, false]
     )
     expect(changedDay.isDayComplete).toBe(false)
-    expect(changedDay.completedDays).not.toContain(today)
+    expect(changedDay.dayOutcomes).not.toContainEqual({
+      day: today,
+      result: 'COMPLETED'
+    })
   })
 
   it('awards today when a corrected goal matches the work already done', async () => {
@@ -396,7 +405,7 @@ describe('a training day saved on the athlete’s device', () => {
 
     expect(await readDashboard()).toMatchObject({
       isDayComplete: true,
-      completedDays: [today]
+      dayOutcomes: [{ day: today, result: 'COMPLETED' }]
     })
   })
 
@@ -426,7 +435,7 @@ describe('a training day saved on the athlete’s device', () => {
 
     expect(await readDashboard()).toMatchObject({
       isDayComplete: true,
-      completedDays: [today]
+      dayOutcomes: [{ day: today, result: 'COMPLETED' }]
     })
   })
 
@@ -438,7 +447,7 @@ describe('a training day saved on the athlete’s device', () => {
     )
   })
 
-  it('shows only finalized shield protection in the requested calendar month', async () => {
+  it('shows every finalized outcome in the requested calendar month', async () => {
     await database.dayOutcomes.bulkAdd([
       { day: '2026-07-31', result: 'SHIELDED' },
       { day: '2026-08-20', result: 'COMPLETED' },
@@ -449,8 +458,11 @@ describe('a training day saved on the athlete’s device', () => {
 
     const dashboard = await readDashboard()
 
-    expect(dashboard.completedDays).toEqual(['2026-08-20'])
-    expect(dashboard.protectedDays).toEqual(['2026-08-21'])
+    expect(dashboard.dayOutcomes).toEqual([
+      { day: '2026-08-20', result: 'COMPLETED' },
+      { day: '2026-08-21', result: 'SHIELDED' },
+      { day: '2026-08-22', result: 'FAILED' }
+    ])
   })
 
   it('shows the best total result from earlier training days', async () => {

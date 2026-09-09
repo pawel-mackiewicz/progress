@@ -44,6 +44,7 @@ export const PROGRESS_MESSAGES = {
       next: 'Następny miesiąc',
       completed: 'wszystkie cele wykonane',
       protected: 'seria ochroniona tarczą',
+      failed: 'cele niewykonane',
       today: 'dzisiaj'
     },
     celebration: {
@@ -115,6 +116,7 @@ export const PROGRESS_MESSAGES = {
       next: 'Next month',
       completed: 'all goals completed',
       protected: 'streak protected by a shield',
+      failed: 'goals not completed',
       today: 'today'
     },
     celebration: {

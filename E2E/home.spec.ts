@@ -237,6 +237,17 @@ test.describe('an athlete keeps a hard-earned streak alive', () => {
 
     await thenTheShieldProtectedTheirStreak(page, protectedHistory)
   })
+
+  test('shows the missed day that broke an unprotected streak', async ({
+    page
+  }) => {
+    await givenTheyOpenTheDashboard(page)
+    const failedHistory = await givenTheyMissedADayWithoutAShield(page)
+
+    await whenTheyReturnToTheDashboard(page)
+
+    await thenTheCalendarShowsTheFailedDay(page, failedHistory)
+  })
 })
 
 async function readTrainingHistory(page: Page) {
@@ -299,6 +310,7 @@ async function givenTheyCompletedThePreviousFourDays(page: Page) {
     await replaceProgressHistory(page, {
       completedDayOffsets: [-4, -3, -2, -1],
       protectedDayOffsets: [],
+      failedDayOffsets: [],
       stats: {
         currentStreak: 4,
         availableShields: 1,
@@ -320,10 +332,25 @@ async function givenTheyLaterMissedOneDay(page: Page) {
     replaceProgressHistory(page, {
       completedDayOffsets: [-6, -5, -4, -3, -1],
       protectedDayOffsets: [-2],
+      failedDayOffsets: [],
       stats: {
         currentStreak: 5,
         availableShields: 0,
         completedDaysTowardNextShield: 1
+      }
+    }))
+}
+
+async function givenTheyMissedADayWithoutAShield(page: Page) {
+  return test.step('Given they missed yesterday without a shield', () =>
+    replaceProgressHistory(page, {
+      completedDayOffsets: [],
+      protectedDayOffsets: [],
+      failedDayOffsets: [-1],
+      stats: {
+        currentStreak: 0,
+        availableShields: 0,
+        completedDaysTowardNextShield: 0
       }
     }))
 }
@@ -356,11 +383,27 @@ async function thenTheShieldProtectedTheirStreak(
   })
 }
 
+async function thenTheCalendarShowsTheFailedDay(
+  page: Page,
+  history: { failedDay: string; today: string }
+) {
+  await test.step('Then the calendar records the unprotected missed day', async () => {
+    if (history.failedDay.slice(0, 7) !== history.today.slice(0, 7)) {
+      await page.getByRole('button', { name: 'Previous month' }).click()
+    }
+
+    const failedDay = page.locator(`[data-day="${history.failedDay}"]`)
+    await expect(failedDay).toHaveClass(/completion-calendar__day--failed/)
+    await expect(failedDay).toHaveAccessibleName(/goals not completed/)
+  })
+}
+
 async function replaceProgressHistory(
   page: Page,
   history: {
     completedDayOffsets: number[]
     protectedDayOffsets: number[]
+    failedDayOffsets: number[]
     stats: {
       currentStreak: number
       availableShields: number
@@ -409,6 +452,10 @@ async function replaceProgressHistory(
         outcomes.put({ day: shiftedDay(offset), result: 'SHIELDED' })
       }
 
+      for (const offset of progressHistory.failedDayOffsets) {
+        outcomes.put({ day: shiftedDay(offset), result: 'FAILED' })
+      }
+
       playerStats.put(progressHistory.stats, 'current')
 
       transaction.oncomplete = () => resolve()
@@ -420,6 +467,7 @@ async function replaceProgressHistory(
 
     return {
       protectedDay: shiftedDay(-2),
+      failedDay: shiftedDay(progressHistory.failedDayOffsets[0] ?? 0),
       today: shiftedDay(0)
     }
   }, history)

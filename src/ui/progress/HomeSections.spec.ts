@@ -89,19 +89,24 @@ describe('the home dashboard sections', () => {
     )
   })
 
-  it('marks the missed day where a shield kept the streak alive', () => {
+  it('tells the story of completed, shielded, and failed days', () => {
     const protectedDay = '2026-09-02' as LocalDayKey
+    const failedDay = '2026-09-03' as LocalDayKey
     const calendar = mount(CompletionCalendar, {
       props: {
         month: new Date(2026, 8, 1),
-        completedDays: ['2026-09-01' as LocalDayKey],
-        protectedDays: [protectedDay],
-        today: '2026-09-03' as LocalDayKey
+        dayOutcomes: [
+          { day: '2026-09-01' as LocalDayKey, result: 'COMPLETED' },
+          { day: protectedDay, result: 'SHIELDED' },
+          { day: failedDay, result: 'FAILED' }
+        ],
+        today: '2026-09-04' as LocalDayKey
       },
       global: { plugins: [createAppI18n('en')] }
     })
 
     const protectedCell = calendar.get(`[data-day="${protectedDay}"]`)
+    const failedCell = calendar.get(`[data-day="${failedDay}"]`)
 
     expect(protectedCell.classes()).toContain(
       'completion-calendar__day--protected'
@@ -112,6 +117,9 @@ describe('the home dashboard sections', () => {
     expect(protectedCell.find('.completion-calendar__shield').exists()).toBe(
       true
     )
+    expect(failedCell.classes()).toContain('completion-calendar__day--failed')
+    expect(failedCell.attributes('aria-label')).toContain('goals not completed')
+    expect(failedCell.find('.completion-calendar__failure').exists()).toBe(true)
   })
 
   it('invites a new athlete to create the first quest', () => {

@@ -36,8 +36,7 @@ describe('today’s arcade training dashboard', () => {
       day: today,
       exercises: [],
       archivedExercises: [],
-      completedDays: [],
-      protectedDays: [],
+      dayOutcomes: [],
       isDayComplete: false,
       ...overrides
     }
@@ -332,7 +331,7 @@ describe('today’s arcade training dashboard', () => {
     })
     vi.mocked(queries.getDashboard).mockResolvedValue(
       snapshot({
-        protectedDays: [protectedDay]
+        dayOutcomes: [{ day: protectedDay, result: 'SHIELDED' }]
       })
     )
     const dashboard = openDashboard()
@@ -487,7 +486,7 @@ describe('today’s arcade training dashboard', () => {
           isComplete: true
         }
       ],
-      completedDays: [today],
+      dayOutcomes: [{ day: today, result: 'COMPLETED' }],
       isDayComplete: true
     })
     vi.mocked(queries.getDashboard)

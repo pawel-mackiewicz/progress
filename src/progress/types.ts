@@ -1,4 +1,5 @@
 import type { LocalDayKey } from '@/progress/date'
+import type { DayOutcomeSnapshot } from '@/progress/write/exercises/domain/DayOutcome'
 
 export const REP_INCREMENTS = [1, 5, 10] as const
 
@@ -34,8 +35,7 @@ export type DashboardSnapshot = {
   day: LocalDayKey
   exercises: DashboardExercise[]
   archivedExercises: Exercise[]
-  completedDays: LocalDayKey[]
-  protectedDays: LocalDayKey[]
+  dayOutcomes: DayOutcomeSnapshot[]
   isDayComplete: boolean
 }
 

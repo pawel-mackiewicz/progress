@@ -99,17 +99,19 @@ export class DexieProgressQueries implements ProgressQueries {
             .map(RepLogEntity.restore)
         ).isComplete
       : false
-    const completedDays = visibleOutcomes
-      .filter((outcome) => outcome.result === 'COMPLETED')
-      .map((outcome) => outcome.day)
+    const dayOutcomes = [...visibleOutcomes]
 
-    if (
-      isDayComplete &&
-      monthStart <= day &&
-      day <= monthEnd &&
-      !completedDays.includes(day)
-    ) {
-      completedDays.push(day)
+    if (isDayComplete && monthStart <= day && day <= monthEnd) {
+      const existingOutcome = dayOutcomes.findIndex(
+        (outcome) => outcome.day === day
+      )
+      const completedOutcome = { day, result: 'COMPLETED' as const }
+
+      if (existingOutcome === -1) {
+        dayOutcomes.push(completedOutcome)
+      } else {
+        dayOutcomes[existingOutcome] = completedOutcome
+      }
     }
     const yesterday = shiftLocalDay(day, -1)
     const yesterdayTotals = sumRepsByExercise(
@@ -144,10 +146,7 @@ export class DexieProgressQueries implements ProgressQueries {
         .sort((first, second) =>
           String(second.archivedAt).localeCompare(String(first.archivedAt))
         ),
-      completedDays,
-      protectedDays: visibleOutcomes
-        .filter((outcome) => outcome.result === 'SHIELDED')
-        .map((outcome) => outcome.day),
+      dayOutcomes,
       isDayComplete
     }
   }

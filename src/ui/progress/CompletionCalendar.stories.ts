@@ -2,13 +2,13 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
 
 import type { LocalDayKey } from '@/progress/date'
+import type { DayOutcomeSnapshot } from '@/progress/write/exercises/domain/DayOutcome'
 
 import CompletionCalendar from './CompletionCalendar.vue'
 
 type CompletionCalendarStoryArgs = {
   month: Date
-  completedDays: LocalDayKey[]
-  protectedDays: LocalDayKey[]
+  dayOutcomes: DayOutcomeSnapshot[]
   today: LocalDayKey
   onPrevious: ReturnType<typeof fn>
   onNext: ReturnType<typeof fn>
@@ -19,14 +19,15 @@ const meta: Meta<CompletionCalendarStoryArgs> = {
   component: CompletionCalendar,
   args: {
     month: new Date(2026, 7, 1),
-    completedDays: [
-      '2026-08-26',
-      '2026-08-27',
-      '2026-08-29',
-      '2026-08-30',
-      '2026-08-31'
-    ] as LocalDayKey[],
-    protectedDays: ['2026-08-28'] as LocalDayKey[],
+    dayOutcomes: [
+      { day: '2026-08-25', result: 'FAILED' },
+      { day: '2026-08-26', result: 'COMPLETED' },
+      { day: '2026-08-27', result: 'COMPLETED' },
+      { day: '2026-08-28', result: 'SHIELDED' },
+      { day: '2026-08-29', result: 'COMPLETED' },
+      { day: '2026-08-30', result: 'COMPLETED' },
+      { day: '2026-08-31', result: 'COMPLETED' }
+    ] as DayOutcomeSnapshot[],
     today: '2026-09-03' as LocalDayKey,
     onPrevious: fn(),
     onNext: fn()
@@ -45,8 +46,7 @@ const meta: Meta<CompletionCalendarStoryArgs> = {
     template: `
       <CompletionCalendar
         :month="args.month"
-        :completed-days="args.completedDays"
-        :protected-days="args.protectedDays"
+        :day-outcomes="args.dayOutcomes"
         :today="args.today"
         @previous="args.onPrevious"
         @next="args.onNext"
@@ -81,8 +81,10 @@ export const ProtectedWinningStreak: Story = {
 export const CurrentMonth: Story = {
   args: {
     month: new Date(2026, 8, 1),
-    completedDays: ['2026-09-01'] as LocalDayKey[],
-    protectedDays: ['2026-09-02'] as LocalDayKey[]
+    dayOutcomes: [
+      { day: '2026-09-01', result: 'COMPLETED' },
+      { day: '2026-09-02', result: 'SHIELDED' }
+    ] as DayOutcomeSnapshot[]
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)

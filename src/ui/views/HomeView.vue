@@ -344,9 +344,8 @@ onUnmounted(() => {
       />
 
       <CompletionCalendar
-        :completed-days="snapshot.completedDays"
+        :day-outcomes="snapshot.dayOutcomes"
         :month="selectedMonth"
-        :protected-days="snapshot.protectedDays"
         :today="today"
         @next="changeMonth(1)"
         @previous="changeMonth(-1)"
