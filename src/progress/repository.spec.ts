@@ -100,12 +100,14 @@ describe('a training day saved on the athlete’s device', () => {
     archiveExercise = new ArchiveExerciseUseCase(
       unitOfWork,
       exerciseRepo,
+      trainingDayRepo,
       dailyCompletion,
       clock
     )
     restoreExercise = new RestoreExerciseUseCase(
       unitOfWork,
       exerciseRepo,
+      trainingDayRepo,
       clock
     )
     queries = new DexieProgressQueries(database)

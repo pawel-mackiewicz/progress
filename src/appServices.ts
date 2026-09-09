@@ -99,12 +99,14 @@ export function createAppServices(database: ProgressDatabase): AppServices {
       archiveExercise: new ArchiveExerciseUseCase(
         unitOfWork,
         exerciseRepo,
+        trainingDayRepo,
         dailyCompletion,
         clock
       ),
       restoreExercise: new RestoreExerciseUseCase(
         unitOfWork,
         exerciseRepo,
+        trainingDayRepo,
         clock
       )
     }

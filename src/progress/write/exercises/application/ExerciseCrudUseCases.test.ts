@@ -60,12 +60,14 @@ describe('an athlete maintaining their exercise plan', () => {
     archiveExercise = new ArchiveExerciseUseCase(
       unitOfWork,
       exerciseRepo,
+      trainingDayRepo,
       dailyCompletion,
       clock
     )
     restoreExercise = new RestoreExerciseUseCase(
       unitOfWork,
       exerciseRepo,
+      trainingDayRepo,
       clock
     )
   })
@@ -210,23 +212,44 @@ describe('an athlete maintaining their exercise plan', () => {
   })
 
   it('archives an exercise and checks whether the remaining plan completes today', async () => {
-    givenAnExercise('push-ups', 'Push-ups')
+    const pushUps = givenAnExercise('push-ups', 'Push-ups')
+    const squats = givenAnExercise('squats', 'Squats')
+    const morningSet = RepLog.restore({
+      id: 'morning-set',
+      exerciseId: pushUps.id,
+      day: today,
+      amount: 10,
+      createdAt: now.toISOString()
+    })
+    givenATrainingDay(today, [pushUps, squats], 'OPEN', [morningSet])
 
     await archiveExercise.handle({ id: 'push-ups', day: today })
 
     expect(unitOfWork.executions).toBe(1)
     expect(exerciseRepo.savedExercises[0]?.archivedAt).toEqual(now)
+    expect(trainingDayRepo.savedTrainingDays[0]?.exercises).toEqual([
+      { exerciseId: squats.id, name: 'Squats', dailyGoal: 40 }
+    ])
+    expect(
+      trainingDayRepo.savedTrainingDays[0]?.repLogs.map((repLog) => repLog.id)
+    ).toEqual(['morning-set'])
     expect(dailyCompletion.checkedDays).toEqual([today])
   })
 
   it('restores an archived exercise when its name is still available', async () => {
-    givenAnExercise('push-ups', 'Push-ups', creationTime)
+    const pushUps = givenAnExercise('push-ups', 'Push-ups', creationTime)
+    const squats = givenAnExercise('squats', 'Squats')
+    givenATrainingDay(today, [squats])
 
     await restoreExercise.handle({ id: 'push-ups' })
 
     expect(unitOfWork.executions).toBe(1)
     expect(exerciseRepo.savedExercises[0]?.archivedAt).toBeNull()
     expect(exerciseRepo.savedExercises[0]?.updatedAt).toEqual(now)
+    expect(trainingDayRepo.savedTrainingDays[0]?.exercises).toEqual([
+      { exerciseId: squats.id, name: 'Squats', dailyGoal: 40 },
+      { exerciseId: pushUps.id, name: 'Push-ups', dailyGoal: 40 }
+    ])
   })
 
   it('keeps an archived exercise aside when its name is active again', async () => {

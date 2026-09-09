@@ -1,10 +1,13 @@
 import type { ExerciseRepoPort } from '@/progress/write/exercises/application/ports/ExerciseRepoPort'
+import type { TrainingDayRepoPort } from '@/progress/write/exercises/application/ports/TrainingDayRepoPort'
 import type { RestoreExerciseCommand } from '@/progress/write/exercises/application/requests/RestoreExerciseCommand'
+import { toLocalDayKey } from '@/progress/date'
 import {
   DuplicateExerciseNameError,
   type Exercise,
   ExerciseNotFoundError
 } from '@/progress/write/exercises/domain/Exercise'
+import { TrainingDayNotOpenForTodayError } from '@/progress/write/exercises/domain/TrainingDay'
 import type { ClockPort } from '@/progress/write/shared/ClockPort'
 import type { UnitOfWork } from '@/progress/write/shared/UnitOfWork'
 import type { UseCase } from '@/progress/write/shared/UseCase'
@@ -13,6 +16,7 @@ export class RestoreExerciseUseCase implements UseCase<RestoreExerciseCommand> {
   public constructor(
     private readonly unitOfWork: UnitOfWork,
     private readonly exerciseRepo: ExerciseRepoPort,
+    private readonly trainingDayRepo: TrainingDayRepoPort,
     private readonly clock: ClockPort
   ) {}
 
@@ -20,7 +24,20 @@ export class RestoreExerciseUseCase implements UseCase<RestoreExerciseCommand> {
     await this.unitOfWork.execute(async () => {
       const exercise = await this.findExercise(command.id)
       await this.ensureNameIsAvailable(exercise)
-      await this.restoreExercise(exercise)
+      const now = this.clock.now()
+      const today = toLocalDayKey(now)
+      const trainingDay = await this.trainingDayRepo.findLatest()
+
+      if (trainingDay?.day !== today || trainingDay.status !== 'OPEN') {
+        throw new TrainingDayNotOpenForTodayError(
+          'Open the dashboard to prepare today’s training day before restoring an exercise.'
+        )
+      }
+
+      const restoredExercise = exercise.reactivate(now)
+
+      await this.exerciseRepo.save(restoredExercise)
+      await this.trainingDayRepo.save(trainingDay.addExercise(restoredExercise))
     })
   }
 
@@ -42,9 +59,5 @@ export class RestoreExerciseUseCase implements UseCase<RestoreExerciseCommand> {
         'An active exercise with this name already exists.'
       )
     }
-  }
-
-  private async restoreExercise(exercise: Exercise): Promise<void> {
-    await this.exerciseRepo.save(exercise.reactivate(this.clock.now()))
   }
 }
