@@ -107,7 +107,14 @@ describe('an athlete preparing today by opening the dashboard', () => {
   }
 
   it('opens an empty plan on the first visit before any exercise is registered', async () => {
-    expect(await whenTheyOpenTheDashboard()).toBe(today)
+    const preparation = await whenTheyOpenTheDashboard()
+
+    expect(preparation.day).toBe(today)
+    expect(preparation.stats.toSnapshot()).toEqual({
+      currentStreak: 0,
+      availableShields: 0,
+      completedDaysTowardNextShield: 0
+    })
 
     expect(unitOfWork.executions).toBe(1)
     expect(
@@ -123,9 +130,12 @@ describe('an athlete preparing today by opening the dashboard', () => {
     givenACompletedTrainingDay(today, squats)
     const originalDay = await trainingDayRepo.findLatest()
 
-    expect(await whenTheyOpenTheDashboard()).toBe(today)
-    expect(await whenTheyOpenTheDashboard()).toBe(today)
+    const firstPreparation = await whenTheyOpenTheDashboard()
+    const refreshedPreparation = await whenTheyOpenTheDashboard()
 
+    expect(firstPreparation.stats).toBe(refreshedPreparation.stats)
+    expect(refreshedPreparation.day).toBe(today)
+    expect(refreshedPreparation.stats.currentStreak).toBe(0)
     expect(await trainingDayRepo.findLatest()).toBe(originalDay)
     expect(originalDay?.isComplete).toBe(true)
     expect(originalDay?.repLogs).toHaveLength(2)
@@ -139,7 +149,7 @@ describe('an athlete preparing today by opening the dashboard', () => {
     givenACompletedTrainingDay('2026-08-23', squats)
 
     await whenTheyOpenTheDashboard()
-    await whenTheyOpenTheDashboard()
+    const refreshedPreparation = await whenTheyOpenTheDashboard()
 
     expect(trainingDayRepo.savedTrainingDays).toHaveLength(2)
     expect(
@@ -147,6 +157,7 @@ describe('an athlete preparing today by opening the dashboard', () => {
     ).toEqual([{ day: '2026-08-23', result: 'COMPLETED' }])
     expect(playerStatsRepo.savedStats).toHaveLength(1)
     expect(playerStatsRepo.savedStats[0]?.currentStreak).toBe(1)
+    expect(refreshedPreparation.stats.currentStreak).toBe(1)
   })
 
   it('reports an already finalized today without reopening or changing it', async () => {
@@ -205,7 +216,7 @@ describe('an athlete preparing today by opening the dashboard', () => {
       })
     )
 
-    await whenTheyOpenTheDashboard()
+    const preparation = await whenTheyOpenTheDashboard()
 
     expect(
       dayOutcomeRepo.savedOutcomes.map((outcome) => outcome.toSnapshot())
@@ -215,6 +226,7 @@ describe('an athlete preparing today by opening the dashboard', () => {
       availableShields: 1,
       completedDaysTowardNextShield: 0
     })
+    expect(preparation.stats).toBe(playerStatsRepo.savedStats[0])
   })
 
   it('spends earned protection before a longer absence breaks the streak', async () => {

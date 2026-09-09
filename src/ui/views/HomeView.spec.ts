@@ -8,6 +8,7 @@ import type {
   DashboardSnapshot,
   ProgressQueries
 } from '@/progress/types'
+import { PlayerStats } from '@/progress/write/exercises/domain/PlayerStats'
 import { createAppServicesProvides } from '@/ui/appServices'
 import { createAppI18n } from '@/ui/i18n'
 import { useRouter } from '@/ui/router/runtime'
@@ -38,10 +39,19 @@ describe('today’s arcade training dashboard', () => {
       completedDays: [],
       protectedDays: [],
       isDayComplete: false,
-      currentStreak: 0,
-      availableShields: 0,
       ...overrides
     }
+  }
+
+  function stats(
+    overrides: Partial<ReturnType<PlayerStats['toSnapshot']>> = {}
+  ) {
+    return PlayerStats.restore({
+      currentStreak: 0,
+      availableShields: 0,
+      completedDaysTowardNextShield: 0,
+      ...overrides
+    })
   }
 
   function exercise(
@@ -72,7 +82,10 @@ describe('today’s arcade training dashboard', () => {
     } as unknown as ReturnType<typeof useRouter>)
     useCases = {
       prepareTodayTrainingDay: {
-        handle: vi.fn().mockImplementation(async () => toLocalDayKey())
+        handle: vi.fn().mockImplementation(async () => ({
+          day: toLocalDayKey(),
+          stats: stats()
+        }))
       },
       addRep: { handle: vi.fn() },
       undoRep: { handle: vi.fn().mockResolvedValue(undefined) },
@@ -117,8 +130,8 @@ describe('today’s arcade training dashboard', () => {
   function givenDayPreparationIsPending() {
     let finish!: (day: LocalDayKey) => void
     vi.mocked(useCases.prepareTodayTrainingDay.handle).mockReturnValueOnce(
-      new Promise<LocalDayKey>((resolve) => {
-        finish = resolve
+      new Promise((resolve) => {
+        finish = (day) => resolve({ day, stats: stats() })
       })
     )
     return { finish }
@@ -307,10 +320,12 @@ describe('today’s arcade training dashboard', () => {
 
   it('shows the shield balance and the day it protected', async () => {
     const protectedDay = shiftLocalDay(today, -1)
+    vi.mocked(useCases.prepareTodayTrainingDay.handle).mockResolvedValue({
+      day: today,
+      stats: stats({ currentStreak: 9, availableShields: 1 })
+    })
     vi.mocked(queries.getDashboard).mockResolvedValue(
       snapshot({
-        currentStreak: 9,
-        availableShields: 1,
         protectedDays: [protectedDay]
       })
     )
@@ -467,8 +482,7 @@ describe('today’s arcade training dashboard', () => {
         }
       ],
       completedDays: [today],
-      isDayComplete: true,
-      currentStreak: 1
+      isDayComplete: true
     })
     vi.mocked(queries.getDashboard)
       .mockResolvedValueOnce(activeDay)
@@ -495,7 +509,7 @@ describe('today’s arcade training dashboard', () => {
       amount: 5
     })
     expect(dashboard.text()).toContain('Quest complete!')
-    expect(dashboard.text()).toContain('1 day streak')
+    expect(dashboard.text()).toContain('Start your streak today')
     expect(
       dashboard.find('[data-testid="exercise-card-push-ups"]').exists()
     ).toBe(true)

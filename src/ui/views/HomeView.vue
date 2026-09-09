@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import { monthRange, toLocalDayKey } from '@/progress/date'
 import type { DashboardSnapshot, RepIncrement } from '@/progress/types'
+import type { PlayerStats } from '@/progress/write/exercises/domain/PlayerStats'
 import { useAppServices } from '@/ui/appServices'
 import CompletionCalendar from '@/ui/progress/CompletionCalendar.vue'
 import CompletionCelebration from '@/ui/progress/CompletionCelebration.vue'
@@ -26,6 +27,7 @@ const selectedMonth = ref(
   new Date(now.value.getFullYear(), now.value.getMonth(), 1)
 )
 const snapshot = ref<DashboardSnapshot | null>(null)
+const playerStats = ref<PlayerStats | null>(null)
 const loading = ref(true)
 const loadError = ref(false)
 const actionError = ref(false)
@@ -75,20 +77,21 @@ async function loadSnapshot() {
   const range = monthRange(selectedMonth.value)
 
   try {
-    const preparedDay = await useCases.prepareTodayTrainingDay.handle()
+    const preparation = await useCases.prepareTodayTrainingDay.handle()
 
     if (sequence !== loadSequence) {
       return
     }
 
     const nextSnapshot = await queries.getDashboard(
-      preparedDay,
+      preparation.day,
       range.firstDayKey,
       range.lastDayKey
     )
 
     if (sequence === loadSequence) {
       snapshot.value = nextSnapshot
+      playerStats.value = preparation.stats
       loadError.value = false
 
       if (
@@ -116,6 +119,7 @@ async function loadSnapshot() {
     if (sequence === loadSequence) {
       loadError.value = true
       snapshot.value = null
+      playerStats.value = null
       expandedExerciseId.value = null
       clearDeferredExerciseOrder()
     }
@@ -295,8 +299,8 @@ onUnmounted(() => {
 <template>
   <div class="home-view">
     <HomeHero
-      :available-shields="snapshot?.availableShields ?? 0"
-      :current-streak="snapshot?.currentStreak ?? 0"
+      :available-shields="playerStats?.availableShields ?? 0"
+      :current-streak="playerStats?.currentStreak ?? 0"
       :date="now"
       :is-day-complete="snapshot?.isDayComplete ?? false"
     />

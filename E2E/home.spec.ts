@@ -109,6 +109,7 @@ test.describe('an athlete keeps a hard-earned streak alive', () => {
       name: 'Push-ups',
       dailyGoal: 15
     })
+    await expect(page.getByText('1 day streak', { exact: true })).toBeVisible()
     await test.step('Then yesterday is finalized and today has the same exercise plan', async () => {
       await expect
         .poll(() => readTrainingHistory(page))
@@ -203,7 +204,15 @@ async function thenTheySeeAnInvitationToCreateTheirFirstExercise(page: Page) {
 
 async function givenTheyCompletedThePreviousFourDays(page: Page) {
   await test.step('Given they completed each of the previous four days', async () => {
-    await replaceCompletionHistory(page, [-4, -3, -2, -1])
+    await replaceProgressHistory(page, {
+      completedDayOffsets: [-4, -3, -2, -1],
+      protectedDayOffsets: [],
+      stats: {
+        currentStreak: 4,
+        availableShields: 1,
+        completedDaysTowardNextShield: 0
+      }
+    })
   })
 }
 
@@ -216,7 +225,15 @@ async function thenTheyHaveOneShield(page: Page) {
 
 async function givenTheyLaterMissedOneDay(page: Page) {
   return test.step('When one day is missing from their protected streak', () =>
-    replaceCompletionHistory(page, [-6, -5, -4, -3, -1]))
+    replaceProgressHistory(page, {
+      completedDayOffsets: [-6, -5, -4, -3, -1],
+      protectedDayOffsets: [-2],
+      stats: {
+        currentStreak: 5,
+        availableShields: 0,
+        completedDaysTowardNextShield: 1
+      }
+    }))
 }
 
 async function whenTheyReturnToTheDashboard(page: Page) {
@@ -247,8 +264,19 @@ async function thenTheShieldProtectedTheirStreak(
   })
 }
 
-async function replaceCompletionHistory(page: Page, dayOffsets: number[]) {
-  return page.evaluate(async (offsets) => {
+async function replaceProgressHistory(
+  page: Page,
+  history: {
+    completedDayOffsets: number[]
+    protectedDayOffsets: number[]
+    stats: {
+      currentStreak: number
+      availableShields: number
+      completedDaysTowardNextShield: number
+    }
+  }
+) {
+  return page.evaluate(async (progressHistory) => {
     function dayKey(date: Date) {
       const year = date.getFullYear()
       const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -272,17 +300,31 @@ async function replaceCompletionHistory(page: Page, dayOffsets: number[]) {
     })
 
     await new Promise<void>((resolve, reject) => {
-      const transaction = database.transaction('dailyCompletions', 'readwrite')
+      const transaction = database.transaction(
+        ['dailyCompletions', 'dayOutcomes', 'playerStats'],
+        'readwrite'
+      )
       const completions = transaction.objectStore('dailyCompletions')
+      const outcomes = transaction.objectStore('dayOutcomes')
+      const playerStats = transaction.objectStore('playerStats')
       completions.clear()
+      outcomes.clear()
+      playerStats.clear()
 
-      for (const offset of offsets) {
+      for (const offset of progressHistory.completedDayOffsets) {
         completions.put({
           day: shiftedDay(offset),
           earnedAt: new Date().toISOString(),
           triggerRepLogId: null
         })
+        outcomes.put({ day: shiftedDay(offset), result: 'COMPLETED' })
       }
+
+      for (const offset of progressHistory.protectedDayOffsets) {
+        outcomes.put({ day: shiftedDay(offset), result: 'SHIELDED' })
+      }
+
+      playerStats.put(progressHistory.stats, 'current')
 
       transaction.oncomplete = () => resolve()
       transaction.onerror = () => reject(transaction.error)
@@ -295,7 +337,7 @@ async function replaceCompletionHistory(page: Page, dayOffsets: number[]) {
       protectedDay: shiftedDay(-2),
       today: shiftedDay(0)
     }
-  }, dayOffsets)
+  }, history)
 }
 
 async function whenTheyChooseToAddAnExercise(page: Page) {
@@ -492,7 +534,7 @@ async function thenTheySeeThatTodaysGoalIsComplete(
   page: Page,
   exerciseName: string
 ) {
-  await test.step("Then today's goal is complete and their streak begins", async () => {
+  await test.step("Then today's goal is complete while its stats await finalization", async () => {
     await expect(
       page.getByRole('heading', { level: 2, name: 'Day cleared!' })
     ).toBeVisible()
@@ -501,7 +543,7 @@ async function thenTheySeeThatTodaysGoalIsComplete(
       '15'
     )
     await expect(page.getByText('GOAL CLEARED', { exact: true })).toBeVisible()
-    await expect(page.getByText('1 day streak', { exact: true })).toBeVisible()
+    await expect(page.getByText('Start your streak today')).toBeVisible()
     await expect(page.getByText('0 shields', { exact: true })).toBeVisible()
     await expect(
       page.getByRole('status').filter({ hasText: 'Quest complete!' })

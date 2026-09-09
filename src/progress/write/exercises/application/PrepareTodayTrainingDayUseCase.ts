@@ -4,6 +4,7 @@ import type { ExerciseRepoPort } from '@/progress/write/exercises/application/po
 import type { PlayerStatsRepoPort } from '@/progress/write/exercises/application/ports/PlayerStatsRepoPort'
 import type { TrainingDayRepoPort } from '@/progress/write/exercises/application/ports/TrainingDayRepoPort'
 import { DayOutcome } from '@/progress/write/exercises/domain/DayOutcome'
+import type { PlayerStats } from '@/progress/write/exercises/domain/PlayerStats'
 import {
   TrainingDay,
   TrainingDayNotOpenForTodayError
@@ -12,9 +13,14 @@ import type { ClockPort } from '@/progress/write/shared/ClockPort'
 import type { UnitOfWork } from '@/progress/write/shared/UnitOfWork'
 import type { UseCase } from '@/progress/write/shared/UseCase'
 
+export type PreparedTodayTrainingDay = {
+  day: LocalDayKey
+  stats: PlayerStats
+}
+
 export class PrepareTodayTrainingDayUseCase implements UseCase<
   void,
-  LocalDayKey
+  PreparedTodayTrainingDay
 > {
   public constructor(
     private readonly unitOfWork: UnitOfWork,
@@ -25,7 +31,7 @@ export class PrepareTodayTrainingDayUseCase implements UseCase<
     private readonly clock: ClockPort
   ) {}
 
-  public async handle(): Promise<LocalDayKey> {
+  public async handle(): Promise<PreparedTodayTrainingDay> {
     return this.unitOfWork.execute(async () => {
       const today = toLocalDayKey(this.clock.now())
       const latestTrainingDay = await this.trainingDayRepo.findLatest()
@@ -37,36 +43,38 @@ export class PrepareTodayTrainingDayUseCase implements UseCase<
           )
         }
 
-        return today
+        return {
+          day: today,
+          stats: await this.playerStatsRepo.get()
+        }
       }
 
       if (latestTrainingDay?.status === 'OPEN') {
         await this.trainingDayRepo.save(latestTrainingDay.finalize())
       }
 
-      await this.finalizeElapsedDays(latestTrainingDay, today)
+      const stats = await this.finalizeElapsedDays(latestTrainingDay, today)
 
       const activeExercises = await this.exerciseRepo.findAllActive()
       await this.trainingDayRepo.save(TrainingDay.open(today, activeExercises))
 
-      return today
+      return { day: today, stats }
     })
   }
 
   private async finalizeElapsedDays(
     latestTrainingDay: TrainingDay | undefined,
     today: LocalDayKey
-  ): Promise<void> {
+  ): Promise<PlayerStats> {
+    let stats = await this.playerStatsRepo.get()
     const latestOutcome = await this.dayOutcomeRepo.findLatestBefore(today)
     const firstUnprocessedDay = latestOutcome
       ? shiftLocalDay(latestOutcome.day, 1)
       : latestTrainingDay?.day
 
     if (!firstUnprocessedDay || firstUnprocessedDay >= today) {
-      return
+      return stats
     }
-
-    let stats = await this.playerStatsRepo.get()
 
     for (
       let day = firstUnprocessedDay;
@@ -82,5 +90,6 @@ export class PrepareTodayTrainingDayUseCase implements UseCase<
     }
 
     await this.playerStatsRepo.save(stats)
+    return stats
   }
 }

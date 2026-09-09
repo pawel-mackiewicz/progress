@@ -43,8 +43,6 @@ export type DashboardSnapshot = {
   completedDays: LocalDayKey[]
   protectedDays: LocalDayKey[]
   isDayComplete: boolean
-  currentStreak: number
-  availableShields: number
 }
 
 export type RecordRepsResult = {

@@ -1,14 +1,16 @@
 import type { ProgressDatabase } from '@/db'
 import { DexieProgressCommands } from '@/progress/commands'
 import { DexieProgressQueries } from '@/progress/queries'
-import type { LocalDayKey } from '@/progress/date'
 import type { ProgressCommands, ProgressQueries } from '@/progress/types'
 import {
   AddRepUseCase,
   type AddRepResult
 } from '@/progress/write/exercises/application/AddRepUseCase'
 import { ArchiveExerciseUseCase } from '@/progress/write/exercises/application/ArchiveExerciseUseCase'
-import { PrepareTodayTrainingDayUseCase } from '@/progress/write/exercises/application/PrepareTodayTrainingDayUseCase'
+import {
+  PrepareTodayTrainingDayUseCase,
+  type PreparedTodayTrainingDay
+} from '@/progress/write/exercises/application/PrepareTodayTrainingDayUseCase'
 import { RegisterExerciseUseCase } from '@/progress/write/exercises/application/RegisterExerciseUseCase'
 import { RestoreExerciseUseCase } from '@/progress/write/exercises/application/RestoreExerciseUseCase'
 import { UndoRepUseCase } from '@/progress/write/exercises/application/UndoRepUseCase'
@@ -30,7 +32,7 @@ import { SystemClock } from '@/progress/write/shared/infra/SystemClock'
 import { DexieUnitOfWork } from '@/progress/write/shared/infra/db/DexieUnitOfWork'
 
 export type AppUseCases = {
-  readonly prepareTodayTrainingDay: UseCase<void, LocalDayKey>
+  readonly prepareTodayTrainingDay: UseCase<void, PreparedTodayTrainingDay>
   readonly addRep: UseCase<AddRepCommand, AddRepResult>
   readonly undoRep: UseCase<UndoRepCommand>
   readonly registerExercise: UseCase<RegisterExerciseCommand>

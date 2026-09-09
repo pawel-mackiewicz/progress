@@ -137,16 +137,6 @@ describe('a training day saved on the athlete’s device', () => {
     return queries.getDashboard(day, monthStart, monthEnd)
   }
 
-  async function givenCompletedDays(...days: LocalDayKey[]) {
-    await database.dailyCompletions.bulkAdd(
-      days.map((day) => ({
-        day,
-        earnedAt: fixedNow.toISOString(),
-        triggerRepLogId: null
-      }))
-    )
-  }
-
   it('closes the previous plan and persists today with every active exercise', async () => {
     await database.exercises.add({
       id: 'existing-squats',
@@ -220,12 +210,18 @@ describe('a training day saved on the athlete’s device', () => {
   it('settles the completed day once when two dashboard visits arrive together', async () => {
     await givenTheyCompletedTodayAndReturnedTomorrow()
 
+    const preparations = await Promise.all([
+      whenTheyOpenTheDashboard(),
+      whenTheyOpenTheDashboard()
+    ])
+
+    expect(preparations.map((preparation) => preparation.day)).toEqual([
+      '2026-08-25',
+      '2026-08-25'
+    ])
     expect(
-      await Promise.all([
-        whenTheyOpenTheDashboard(),
-        whenTheyOpenTheDashboard()
-      ])
-    ).toEqual(['2026-08-25', '2026-08-25'])
+      preparations.map((preparation) => preparation.stats.currentStreak)
+    ).toEqual([1, 1])
 
     expect(await database.trainingDays.toArray()).toMatchObject([
       { day: today, status: 'FINALIZED' },
@@ -427,165 +423,16 @@ describe('a training day saved on the athlete’s device', () => {
     )
   })
 
-  it('continues a streak through yesterday until today is cleared', async () => {
-    await database.dailyCompletions.bulkAdd([
-      {
-        day: '2026-08-22',
-        earnedAt: fixedNow.toISOString(),
-        triggerRepLogId: null
-      },
-      {
-        day: '2026-08-23',
-        earnedAt: fixedNow.toISOString(),
-        triggerRepLogId: null
-      }
+  it('shows only finalized shield protection in the requested calendar month', async () => {
+    await database.dayOutcomes.bulkAdd([
+      { day: '2026-07-31', result: 'SHIELDED' },
+      { day: '2026-08-20', result: 'COMPLETED' },
+      { day: '2026-08-21', result: 'SHIELDED' },
+      { day: '2026-08-22', result: 'FAILED' },
+      { day: '2026-09-01', result: 'SHIELDED' }
     ])
 
-    expect((await readDashboard()).currentStreak).toBe(2)
-
-    await database.dailyCompletions.add({
-      day: today,
-      earnedAt: fixedNow.toISOString(),
-      triggerRepLogId: null
-    })
-
-    expect((await readDashboard()).currentStreak).toBe(3)
-  })
-
-  it('stocks one shield every four uninterrupted wins, up to two', async () => {
-    await givenCompletedDays(
-      '2026-08-17',
-      '2026-08-18',
-      '2026-08-19',
-      '2026-08-20'
-    )
-
-    expect(await readDashboard('2026-08-20')).toMatchObject({
-      currentStreak: 4,
-      availableShields: 1
-    })
-
-    await givenCompletedDays(
-      '2026-08-21',
-      '2026-08-22',
-      '2026-08-23',
-      '2026-08-24',
-      '2026-08-25',
-      '2026-08-26',
-      '2026-08-27',
-      '2026-08-28'
-    )
-
-    expect(await readDashboard('2026-08-28')).toMatchObject({
-      currentStreak: 12,
-      availableShields: 2
-    })
-  })
-
-  it('waits until a day has passed before spending its shield', async () => {
-    await givenCompletedDays(
-      '2026-08-20',
-      '2026-08-21',
-      '2026-08-22',
-      '2026-08-23'
-    )
-
-    expect(await readDashboard()).toMatchObject({
-      currentStreak: 4,
-      availableShields: 1,
-      protectedDays: []
-    })
-  })
-
-  it('keeps the streak alive when a shield covers one missed day', async () => {
-    await givenCompletedDays(
-      '2026-08-19',
-      '2026-08-20',
-      '2026-08-21',
-      '2026-08-22'
-    )
-
-    const streakBeforeTheMiss = await readDashboard('2026-08-22')
-    const streakAfterTheMiss = await readDashboard()
-
-    expect(streakBeforeTheMiss).toMatchObject({
-      currentStreak: 4,
-      availableShields: 1
-    })
-    expect(streakAfterTheMiss).toMatchObject({
-      currentStreak: 4,
-      availableShields: 0,
-      protectedDays: ['2026-08-23']
-    })
-  })
-
-  it('spends two shields on two missed days before the streak falls', async () => {
-    await givenCompletedDays(
-      '2026-08-14',
-      '2026-08-15',
-      '2026-08-16',
-      '2026-08-17',
-      '2026-08-18',
-      '2026-08-19',
-      '2026-08-20',
-      '2026-08-21'
-    )
-
-    expect(await readDashboard()).toMatchObject({
-      currentStreak: 8,
-      availableShields: 0,
-      protectedDays: ['2026-08-22', '2026-08-23']
-    })
-
-    expect(await readDashboard('2026-08-25')).toMatchObject({
-      currentStreak: 0,
-      availableShields: 0
-    })
-  })
-
-  it('earns the next shield after four new wins following a protected miss', async () => {
-    await givenCompletedDays(
-      '2026-08-12',
-      '2026-08-13',
-      '2026-08-14',
-      '2026-08-15',
-      '2026-08-16',
-      '2026-08-17',
-      '2026-08-19',
-      '2026-08-20'
-    )
-
-    expect(await readDashboard('2026-08-20')).toMatchObject({
-      currentStreak: 8,
-      availableShields: 0,
-      protectedDays: ['2026-08-18']
-    })
-
-    await givenCompletedDays('2026-08-21', '2026-08-22')
-
-    expect(await readDashboard('2026-08-22')).toMatchObject({
-      currentStreak: 10,
-      availableShields: 1,
-      protectedDays: ['2026-08-18']
-    })
-  })
-
-  it('takes back a newly earned shield when the winning set is undone', async () => {
-    const pushUps = await givenAnExercise('Push-ups', 1)
-    await givenCompletedDays('2026-08-21', '2026-08-22', '2026-08-23')
-    const winningSet = await whenTheAthleteAdds(pushUps.id, 1)
-
-    expect(await readDashboard()).toMatchObject({
-      currentStreak: 4,
-      availableShields: 1
-    })
-
-    await commands.undoRepLog(winningSet.repLogId)
-
-    expect(await readDashboard()).toMatchObject({
-      currentStreak: 3,
-      availableShields: 0
-    })
+    expect((await readDashboard()).protectedDays).toEqual(['2026-08-21'])
   })
 
   it('shows the best total result from earlier training days', async () => {
