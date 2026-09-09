@@ -58,6 +58,97 @@ test.describe('a first-time athlete starts tracking daily progress', () => {
   })
 })
 
+test.describe("an athlete maintains the exercises behind today's plan", () => {
+  test('revises a goal without losing the reps already earned today', async ({
+    page
+  }) => {
+    await givenTheyOpenTheDashboard(page)
+    await whenTheyChooseToAddAnExercise(page)
+    await whenTheyCreateAnExercise(page, {
+      name: 'Push-ups',
+      dailyGoal: 15
+    })
+    await whenTheyExpandTheExercise(page, 'Push-ups')
+    await whenTheyRecordTenReps(page, 'Push-ups')
+    await thenTheySeeFiveRepsRemaining(page, 'Push-ups')
+
+    await whenTheyChooseToEditTheExercise(page, 'Push-ups')
+    await thenTheySeeTheExerciseDetails(page, {
+      name: 'Push-ups',
+      dailyGoal: 15
+    })
+    await whenTheyReviseTheExercise(page, {
+      name: 'Diamond push-ups',
+      dailyGoal: 10
+    })
+
+    await thenTheRevisedGoalCompletesTodaysPlan(page, 'Diamond push-ups')
+    await whenTheyExpandTheExercise(page, 'Diamond push-ups', 'Completed')
+    await thenTheExerciseHasProgress(page, {
+      name: 'Diamond push-ups',
+      completedReps: 10,
+      dailyGoal: 10
+    })
+  })
+
+  test('keeps a duplicate exercise draft editable instead of creating it', async ({
+    page
+  }) => {
+    await givenTheyOpenTheDashboard(page)
+    await whenTheyChooseToAddAnExercise(page)
+    await whenTheyCreateAnExercise(page, {
+      name: 'Push-ups',
+      dailyGoal: 15
+    })
+    await whenTheyChooseToAddAnExercise(page)
+
+    await whenTheyTryToCreateAnExercise(page, {
+      name: '  push-UPS  ',
+      dailyGoal: 25
+    })
+
+    await thenTheDuplicateDraftRemainsEditable(page, {
+      name: '  push-UPS  ',
+      dailyGoal: 25
+    })
+    await whenTheyReturnFromTheExerciseForm(page)
+    await thenOnlyTheseExercisesAppear(page, ['Push-ups'])
+  })
+
+  test('archives only after confirmation and restores the exercise with its reps', async ({
+    page
+  }) => {
+    await givenTheyOpenTheDashboard(page)
+    await whenTheyChooseToAddAnExercise(page)
+    await whenTheyCreateAnExercise(page, {
+      name: 'Pull-ups',
+      dailyGoal: 10
+    })
+    await whenTheyExpandTheExercise(page, 'Pull-ups')
+    await whenTheyRecordFiveReps(page, 'Pull-ups')
+    await thenTheExerciseHasProgress(page, {
+      name: 'Pull-ups',
+      completedReps: 5,
+      dailyGoal: 10
+    })
+    await whenTheyChooseToEditTheExercise(page, 'Pull-ups')
+
+    await whenTheyDeclineToArchiveTheExercise(page, 'Pull-ups')
+    await thenTheyAreStillEditingTheExercise(page, 'Pull-ups')
+    await whenTheyConfirmArchivingTheExercise(page, 'Pull-ups')
+
+    await thenTheExerciseMovesToTheArchive(page)
+    await whenTheyOpenTheArchive(page)
+    await whenTheyRestoreTheExercise(page, 'Pull-ups')
+    await whenTheyExpandTheExercise(page, 'Pull-ups')
+    await thenTheExerciseHasProgress(page, {
+      name: 'Pull-ups',
+      completedReps: 5,
+      dailyGoal: 10
+    })
+  })
+})
+
 test.describe('an athlete clears one exercise while another still needs work', () => {
   test('keeps the completed exercise in place until they collapse it', async ({
     page
@@ -110,6 +201,7 @@ test.describe('an athlete keeps a hard-earned streak alive', () => {
       dailyGoal: 15
     })
     await expect(page.getByText('1 day streak', { exact: true })).toBeVisible()
+    await thenTheCalendarShowsTheCompletedDay(page, '2026-08-24')
     await test.step('Then yesterday is finalized and today has the same exercise plan', async () => {
       await expect
         .poll(() => readTrainingHistory(page))
@@ -395,6 +487,182 @@ async function whenTheyCreateAnExercise(
   })
 }
 
+async function whenTheyTryToCreateAnExercise(
+  page: Page,
+  exercise: { name: string; dailyGoal: number }
+) {
+  await test.step(`When they try to create another exercise named ${exercise.name.trim()}`, async () => {
+    await page.getByLabel('Exercise name').fill(exercise.name)
+    await page.getByLabel('Daily reps goal').fill(String(exercise.dailyGoal))
+    await page.getByRole('button', { name: 'Save exercise' }).click()
+  })
+}
+
+async function whenTheyChooseToEditTheExercise(
+  page: Page,
+  exerciseName: string
+) {
+  await test.step(`When they choose to edit ${exerciseName}`, async () => {
+    await page.getByRole('button', { name: `Edit ${exerciseName}` }).click()
+    await expect(page).toHaveURL(/\/exercises\/[^/]+\/edit$/)
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Edit exercise' })
+    ).toBeVisible()
+  })
+}
+
+async function thenTheySeeTheExerciseDetails(
+  page: Page,
+  exercise: { name: string; dailyGoal: number }
+) {
+  await test.step('Then the form is populated with the current exercise details', async () => {
+    await expect(page.getByLabel('Exercise name')).toHaveValue(exercise.name)
+    await expect(page.getByLabel('Daily reps goal')).toHaveValue(
+      String(exercise.dailyGoal)
+    )
+  })
+}
+
+async function whenTheyReviseTheExercise(
+  page: Page,
+  exercise: { name: string; dailyGoal: number }
+) {
+  await test.step(`And they revise it to ${exercise.name} with a daily goal of ${exercise.dailyGoal}`, async () => {
+    await page.getByLabel('Exercise name').fill(exercise.name)
+    await page.getByLabel('Daily reps goal').fill(String(exercise.dailyGoal))
+    await page.getByRole('button', { name: 'Save exercise' }).click()
+    await expect(page).toHaveURL(/\/$/)
+  })
+}
+
+async function thenTheRevisedGoalCompletesTodaysPlan(
+  page: Page,
+  exerciseName: string
+) {
+  await test.step("Then today's existing reps satisfy the revised goal", async () => {
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Day cleared!' })
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', {
+        name: `Expand ${exerciseName}. Status: Completed`
+      })
+    ).toBeVisible()
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Quest complete!' })
+    ).toBeVisible()
+  })
+}
+
+async function thenTheDuplicateDraftRemainsEditable(
+  page: Page,
+  exercise: { name: string; dailyGoal: number }
+) {
+  await test.step('Then the duplicate warning appears without discarding their draft', async () => {
+    await expect(page).toHaveURL(/\/exercises\/new$/)
+    await expect(
+      page.getByRole('alert').filter({
+        hasText: 'An active exercise with this name already exists.'
+      })
+    ).toBeVisible()
+    await expect(page.getByLabel('Exercise name')).toHaveValue(exercise.name)
+    await expect(page.getByLabel('Daily reps goal')).toHaveValue(
+      String(exercise.dailyGoal)
+    )
+  })
+}
+
+async function whenTheyReturnFromTheExerciseForm(page: Page) {
+  await test.step('When they return to the dashboard without saving the duplicate', async () => {
+    await page.getByRole('button', { name: 'Back' }).click()
+    await expect(page).toHaveURL(/\/$/)
+  })
+}
+
+async function thenOnlyTheseExercisesAppear(
+  page: Page,
+  expectedNames: string[]
+) {
+  await test.step("Then only the original exercises appear in today's plan", async () => {
+    await expect(exerciseNames(page)).toHaveText(expectedNames)
+  })
+}
+
+async function whenTheyDeclineToArchiveTheExercise(
+  page: Page,
+  exerciseName: string
+) {
+  await test.step(`When they decline to archive ${exerciseName}`, async () => {
+    const dialogHandled = page.waitForEvent('dialog').then(async (dialog) => {
+      expect(dialog.message()).toBe(
+        `Archive “${exerciseName}”? Its history will stay safe.`
+      )
+      await dialog.dismiss()
+    })
+
+    await page.getByRole('button', { name: 'Archive exercise' }).click()
+    await dialogHandled
+  })
+}
+
+async function thenTheyAreStillEditingTheExercise(
+  page: Page,
+  exerciseName: string
+) {
+  await test.step('Then the exercise remains active and unchanged', async () => {
+    await expect(page).toHaveURL(/\/exercises\/[^/]+\/edit$/)
+    await expect(page.getByLabel('Exercise name')).toHaveValue(exerciseName)
+  })
+}
+
+async function whenTheyConfirmArchivingTheExercise(
+  page: Page,
+  exerciseName: string
+) {
+  await test.step(`When they confirm archiving ${exerciseName}`, async () => {
+    const dialogHandled = page.waitForEvent('dialog').then(async (dialog) => {
+      expect(dialog.message()).toBe(
+        `Archive “${exerciseName}”? Its history will stay safe.`
+      )
+      await dialog.accept()
+    })
+
+    await page.getByRole('button', { name: 'Archive exercise' }).click()
+    await dialogHandled
+    await expect(page).toHaveURL(/\/$/)
+  })
+}
+
+async function thenTheExerciseMovesToTheArchive(page: Page) {
+  await test.step("Then the exercise leaves today's plan and appears in the archive", async () => {
+    await expect(exerciseNames(page)).toHaveCount(0)
+    await expect(page.getByText('Archived (1)', { exact: true })).toBeVisible()
+  })
+}
+
+async function whenTheyOpenTheArchive(page: Page) {
+  await test.step('When they open the archive', async () => {
+    await page.getByText('Archived (1)', { exact: true }).click()
+  })
+}
+
+async function whenTheyRestoreTheExercise(page: Page, exerciseName: string) {
+  await test.step(`When they restore ${exerciseName}`, async () => {
+    await expect(
+      page.getByRole('button', { name: `Restore ${exerciseName}` })
+    ).toBeVisible()
+    await page.getByRole('button', { name: `Restore ${exerciseName}` }).click()
+    await expect(
+      page.getByRole('button', {
+        name: `Expand ${exerciseName}. Status: Not completed`
+      })
+    ).toBeVisible()
+    await expect(
+      page.getByText('Archived (1)', { exact: true })
+    ).not.toBeVisible()
+  })
+}
+
 async function thenTheirNewExerciseAppears(page: Page, exerciseName: string) {
   await test.step('Then their new exercise appears on the dashboard', async () => {
     await expect(
@@ -405,11 +673,15 @@ async function thenTheirNewExerciseAppears(page: Page, exerciseName: string) {
   })
 }
 
-async function whenTheyExpandTheExercise(page: Page, exerciseName: string) {
+async function whenTheyExpandTheExercise(
+  page: Page,
+  exerciseName: string,
+  status: 'Not completed' | 'Completed' = 'Not completed'
+) {
   await test.step('When they expand the exercise to see its details', async () => {
     await page
       .getByRole('button', {
-        name: `Expand ${exerciseName}. Status: Not completed`
+        name: `Expand ${exerciseName}. Status: ${status}`
       })
       .click()
   })
@@ -462,10 +734,30 @@ async function thenTheySeeFiveRepsRemaining(page: Page, exerciseName: string) {
 }
 
 async function whenTheyRecordFiveReps(page: Page, exerciseName: string) {
-  await test.step('When they record the final five reps', async () => {
+  await test.step('When they record five reps', async () => {
     await page
       .getByRole('button', { name: `Add 5 reps to ${exerciseName}` })
       .click()
+  })
+}
+
+async function thenTheExerciseHasProgress(
+  page: Page,
+  exercise: { name: string; completedReps: number; dailyGoal: number }
+) {
+  await test.step(`Then ${exercise.name} keeps ${exercise.completedReps} of ${exercise.dailyGoal} reps`, async () => {
+    const progress = progressFor(page, exercise.name)
+    await expect(progress).toHaveAccessibleName(
+      `Progress for ${exercise.name}: ${exercise.completedReps} of ${exercise.dailyGoal}`
+    )
+    await expect(progress).toHaveAttribute(
+      'aria-valuenow',
+      String(exercise.completedReps)
+    )
+    await expect(progress).toHaveAttribute(
+      'aria-valuemax',
+      String(exercise.dailyGoal)
+    )
   })
 }
 
@@ -579,6 +871,14 @@ async function thenSquatsAreOpenAboveTheCompletedExercise(page: Page) {
         name: 'Collapse details for Squats'
       })
     ).toBeVisible()
+  })
+}
+
+async function thenTheCalendarShowsTheCompletedDay(page: Page, day: string) {
+  await test.step('Then the victory calendar marks that completed day', async () => {
+    const completedDay = page.locator(`[data-day="${day}"]`)
+    await expect(completedDay).toHaveClass(/completion-calendar__day--complete/)
+    await expect(completedDay).toHaveAccessibleName(/all goals completed/)
   })
 }
 
