@@ -50,6 +50,3 @@ export class RegisterExerciseUseCase implements UseCase<RegisterExerciseCommand>
     })
   }
 }
-
-// what about day completion? separate use case called from the dashboard after each rep addition / exercise update?
-// do this after everything.
