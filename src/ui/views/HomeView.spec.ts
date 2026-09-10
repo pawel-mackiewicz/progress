@@ -80,6 +80,7 @@ describe('today’s arcade training dashboard', () => {
     return {
       exerciseId: 'push-ups',
       name: 'Push-ups',
+      level: 2,
       previousDailyGoal: 15,
       nextDailyGoal: 16,
       ...overrides
@@ -215,9 +216,11 @@ describe('today’s arcade training dashboard', () => {
     await flushPromises()
 
     const reward = dashboard.get('[role="dialog"]')
+    expect(reward.text()).toContain('LVL UP!')
     expect(reward.text()).toContain('You raised the bar!')
     expect(reward.findAll('li')).toHaveLength(2)
     expect(reward.text()).toContain('Push-ups')
+    expect(reward.text()).toContain('LEVEL 2')
     expect(reward.text()).toContain('15')
     expect(reward.text()).toContain('16')
     expect(reward.text()).toContain('Squats')

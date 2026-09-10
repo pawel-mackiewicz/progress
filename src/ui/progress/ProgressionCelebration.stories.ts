@@ -13,6 +13,7 @@ type ProgressionCelebrationStoryArgs = {
 const pushUpsProgression: ProgressedExerciseForCelebration = {
   exerciseId: 'push-ups',
   name: 'Pompki',
+  level: 2,
   previousDailyGoal: 15,
   nextDailyGoal: 16
 }
@@ -43,16 +44,17 @@ export const EarnedGoalIncrease: Story = {
     const canvas = within(canvasElement)
     const dialog = canvas.getByRole('dialog')
     const action = canvas.getByRole('button', {
-      name: 'Rozpocznij dzisiejszą misję'
+      name: 'Zacznij dzisiejszą misję'
     })
 
     await expect(dialog).toHaveAttribute('aria-modal', 'true')
     await waitFor(async () => {
       await expect(
-        canvas.getByRole('heading', { name: 'Poprzeczka idzie w górę!' })
+        canvas.getByRole('heading', { name: 'Poziom wyżej!' })
       ).toBeVisible()
     })
     await expect(dialog).toHaveTextContent('Pompki')
+    await expect(dialog).toHaveTextContent('POZIOM 2')
     await expect(dialog).toHaveTextContent('15')
     await expect(dialog).toHaveTextContent('16')
     await expect(action).toHaveFocus()
@@ -70,12 +72,14 @@ export const SeveralGoalsAtOnce: Story = {
       {
         exerciseId: 'squats',
         name: 'Przysiady ze sztangą',
+        level: 2,
         previousDailyGoal: 30,
         nextDailyGoal: 33
       },
       {
         exerciseId: 'plank',
         name: 'Deska',
+        level: 2,
         previousDailyGoal: 90,
         nextDailyGoal: 99
       }
@@ -87,7 +91,7 @@ export const SeveralGoalsAtOnce: Story = {
     await expect(canvas.getAllByRole('listitem')).toHaveLength(3)
     await expect(
       canvas.getByText(
-        'Dzienny cel dla Przysiady ze sztangą wzrósł z 30 do 33.'
+        'Ćwiczenie „Przysiady ze sztangą” osiągnęło poziom 2. Cel dzienny wzrósł z 30 do 33 powtórzeń.'
       )
     ).toBeInTheDocument()
   }

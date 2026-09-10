@@ -17,6 +17,7 @@ import type { UseCase } from '@/progress/write/shared/UseCase'
 export type ProgressedExerciseForCelebration = {
   exerciseId: string
   name: string
+  level: number
   previousDailyGoal: number
   nextDailyGoal: number
 }
@@ -82,6 +83,7 @@ export class PrepareTodayTrainingDayUseCase implements UseCase<
           ({ exercise, previousDailyGoal }) => ({
             exerciseId: exercise.id,
             name: exercise.name,
+            level: exercise.level,
             previousDailyGoal,
             nextDailyGoal: exercise.dailyGoal
           })

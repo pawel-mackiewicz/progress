@@ -202,6 +202,7 @@ test.describe('an athlete keeps a hard-earned streak alive', () => {
 
     await thenTheyCelebrateTheirRaisedGoal(page, {
       name: 'Push-ups',
+      level: 2,
       previousDailyGoal: 15,
       nextDailyGoal: 16
     })
@@ -836,6 +837,7 @@ async function thenTheyCelebrateTheirRaisedGoal(
   page: Page,
   exercise: {
     name: string
+    level: number
     previousDailyGoal: number
     nextDailyGoal: number
   }
@@ -847,6 +849,9 @@ async function thenTheyCelebrateTheirRaisedGoal(
 
     await expect(reward).toBeVisible()
     await expect(reward).toContainText(exercise.name)
+    await expect(
+      reward.getByText(`LEVEL ${exercise.level}`, { exact: true })
+    ).toBeVisible()
     await expect(
       reward.getByText(String(exercise.previousDailyGoal), { exact: true })
     ).toBeVisible()

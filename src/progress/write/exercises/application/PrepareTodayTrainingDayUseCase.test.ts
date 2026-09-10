@@ -236,6 +236,7 @@ describe('an athlete preparing today by opening the dashboard', () => {
       {
         exerciseId: squats.id,
         name: 'Squats',
+        level: 2,
         previousDailyGoal: 20,
         nextDailyGoal: 21
       }

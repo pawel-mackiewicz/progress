@@ -312,6 +312,7 @@ describe('a training day saved on the athlete’s device', () => {
       {
         exerciseId: expect.any(String),
         name: 'Push-ups',
+        level: 2,
         previousDailyGoal: 1,
         nextDailyGoal: 2
       }

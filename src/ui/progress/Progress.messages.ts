@@ -53,13 +53,14 @@ export const PROGRESS_MESSAGES = {
       body: 'Wszystkie paski pełne. Seria trwa.'
     },
     progression: {
-      eyebrow: 'AWANS CELU',
-      title: 'Poprzeczka idzie w górę!',
-      body: 'Wczorajszy dodatkowy wysiłek podniósł Twoje cele na dziś.',
-      dailyGoal: 'DZIENNY CEL',
+      eyebrow: 'AWANS',
+      title: 'Poziom wyżej!',
+      body: 'Wczorajszy zapas powtórzeń odblokował wyższe cele na dziś.',
+      level: 'POZIOM {level}',
+      dailyGoal: 'CEL DZIENNY',
       changeAnnouncement:
-        'Dzienny cel dla {name} wzrósł z {previous} do {next}.',
-      action: 'Rozpocznij dzisiejszą misję'
+        'Ćwiczenie „{name}” osiągnęło poziom {level}. Cel dzienny wzrósł z {previous} do {next} powtórzeń.',
+      action: 'Zacznij dzisiejszą misję'
     },
     form: {
       newEyebrow: 'NOWA MISJA',
@@ -134,12 +135,13 @@ export const PROGRESS_MESSAGES = {
       body: 'Every bar is full. Keep the streak alive.'
     },
     progression: {
-      eyebrow: 'GOAL LEVEL UP',
+      eyebrow: 'LVL UP!',
       title: 'You raised the bar!',
       body: "Yesterday's extra effort unlocked higher targets for today.",
+      level: 'LEVEL {level}',
       dailyGoal: 'DAILY GOAL',
       changeAnnouncement:
-        'The daily goal for {name} increased from {previous} to {next}.',
+        '{name} reached level {level}. The daily goal increased from {previous} to {next}.',
       action: "Start today's quest"
     },
     form: {

@@ -149,6 +149,7 @@ onBeforeUnmount(() => deactivateDialog(false))
               {{
                 t('progression.changeAnnouncement', {
                   name: exercise.name,
+                  level: exercise.level,
                   previous: exercise.previousDailyGoal,
                   next: exercise.nextDailyGoal
                 })
@@ -156,8 +157,13 @@ onBeforeUnmount(() => deactivateDialog(false))
             </span>
 
             <span class="progression-celebration__exercise" aria-hidden="true">
+              <span class="progression-celebration__level">
+                {{ t('progression.level', { level: exercise.level }) }}
+              </span>
               <strong>{{ exercise.name }}</strong>
-              <span>{{ t('progression.dailyGoal') }}</span>
+              <span class="progression-celebration__goal-label">
+                {{ t('progression.dailyGoal') }}
+              </span>
             </span>
 
             <span class="progression-celebration__change" aria-hidden="true">
@@ -348,12 +354,24 @@ onBeforeUnmount(() => deactivateDialog(false))
   overflow-wrap: anywhere;
 }
 
-.progression-celebration__exercise span {
+.progression-celebration__level,
+.progression-celebration__goal-label {
+  width: max-content;
   color: var(--color-secondary);
   font-family: var(--font-mono);
   font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.12em;
+}
+
+.progression-celebration__level {
+  padding: 0.18rem 0.42rem;
+  border: 1px solid rgb(from var(--color-success) r g b / 0.52);
+  border-radius: 999px;
+  color: var(--color-success);
+  background: rgb(from var(--color-success) r g b / 0.09);
+  box-shadow: 0 0 0.75rem rgb(from var(--color-success) r g b / 0.16);
+  text-shadow: 0 0 0.55rem rgb(from var(--color-success) r g b / 0.45);
 }
 
 .progression-celebration__change {
