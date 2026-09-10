@@ -57,8 +57,17 @@ describe('an athlete progressing after a training day', () => {
     expect(progression.progressedExercises[0]?.exercise).toMatchObject({
       id: pullUps.id,
       dailyGoal: 20,
+      level: 2,
       updatedAt: progressionTime
     })
+    expect(progression.progressedExercises[0]?.exercise.levels).toEqual([
+      {
+        level: 2,
+        achievedAt: progressionTime,
+        previousDailyGoal: 19,
+        nextDailyGoal: 20
+      }
+    ])
   })
 
   it('uses percentage progression from twenty and rounds to the nearest rep', () => {
@@ -104,6 +113,8 @@ describe('an athlete progressing after a training day', () => {
     const progression = whenTheTrainingDayProgresses(day, [squats])
 
     expect(progression.progressedExercises).toEqual([])
+    expect(squats.level).toBe(1)
+    expect(squats.levels).toEqual([])
   })
 
   it('does not progress one exercise when the whole training day is incomplete', () => {
@@ -149,7 +160,8 @@ describe('an athlete progressing after a training day', () => {
     expect(progression.progressedExercises).toHaveLength(1)
     expect(progression.progressedExercises[0]?.exercise).toMatchObject({
       id: pullUps.id,
-      dailyGoal: 11
+      dailyGoal: 11,
+      level: 2
     })
     expect(progression.progressedExercises[0]?.exercise.isArchived()).toBe(true)
     expect(newExercise.dailyGoal).toBe(30)

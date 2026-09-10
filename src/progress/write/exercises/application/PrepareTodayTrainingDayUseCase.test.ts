@@ -62,6 +62,7 @@ describe('an athlete preparing today by opening the dashboard', () => {
       id,
       name,
       dailyGoal: 20,
+      levels: [],
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
       archivedAt: archivedAt?.toISOString() ?? null
@@ -246,6 +247,14 @@ describe('an athlete preparing today by opening the dashboard', () => {
       {
         id: squats.id,
         dailyGoal: 21,
+        levels: [
+          {
+            level: 2,
+            achievedAt: now.toISOString(),
+            previousDailyGoal: 20,
+            nextDailyGoal: 21
+          }
+        ],
         updatedAt: now.toISOString()
       }
     ])

@@ -287,6 +287,7 @@ describe('a training day saved on the athlete’s device', () => {
     expect(await database.exercises.toArray()).toMatchObject([
       { name: 'Push-ups', dailyGoal: 1 }
     ])
+    expect(await database.exerciseLevels.count()).toBe(0)
 
     failingSave.mockRestore()
     const preparation = await whenTheyOpenTheDashboard()
@@ -299,6 +300,13 @@ describe('a training day saved on the athlete’s device', () => {
     })
     expect(await database.exercises.toArray()).toMatchObject([
       { name: 'Push-ups', dailyGoal: 2 }
+    ])
+    expect(await database.exerciseLevels.toArray()).toMatchObject([
+      {
+        level: 2,
+        previousDailyGoal: 1,
+        nextDailyGoal: 2
+      }
     ])
     expect(preparation.progressedExercises).toEqual([
       {

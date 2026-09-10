@@ -3,6 +3,7 @@ import Dexie, { type EntityTable, type Table } from 'dexie'
 import type {
   PersistedDayOutcome,
   PersistedExercise,
+  PersistedExerciseLevel,
   PersistedPlayerStats,
   PersistedRepLog,
   PersistedTrainingDay
@@ -15,6 +16,7 @@ export const PLAYER_STATS_KEY = 'current'
 
 export class ProgressDatabase extends Dexie {
   exercises!: EntityTable<PersistedExercise, 'id'>
+  exerciseLevels!: Table<PersistedExerciseLevel, [string, number]>
   repLogs!: EntityTable<PersistedRepLog, 'id'>
   trainingDays!: EntityTable<PersistedTrainingDay, 'day'>
   dayOutcomes!: EntityTable<PersistedDayOutcome, 'day'>
@@ -76,6 +78,10 @@ export class ProgressDatabase extends Dexie {
 
     this.version(4).stores({
       dailyCompletions: null
+    })
+
+    this.version(5).stores({
+      exerciseLevels: '[exerciseId+level], exerciseId'
     })
   }
 }

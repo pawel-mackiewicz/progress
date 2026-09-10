@@ -92,6 +92,7 @@ describe('an athlete recording a set in today’s training', () => {
       id,
       name: id,
       dailyGoal,
+      levels: [],
       createdAt: yesterday,
       updatedAt: yesterday,
       archivedAt: archivedAt?.toISOString() ?? null

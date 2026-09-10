@@ -118,7 +118,7 @@ export class TrainingDayProgressionService {
 
     try {
       return {
-        exercise: exercise.applyProgression(progression, progressedAt),
+        exercise: exercise.levelUp(progression, progressedAt),
         previousDailyGoal: progression.previousDailyGoal
       }
     } catch (error) {

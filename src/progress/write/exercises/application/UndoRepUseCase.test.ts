@@ -64,6 +64,7 @@ describe('an athlete undoing a mistaken set from today’s training', () => {
       id: 'push-ups',
       name: 'Push-ups',
       dailyGoal: 20,
+      levels: [],
       createdAt: yesterday,
       updatedAt: yesterday,
       archivedAt: null
