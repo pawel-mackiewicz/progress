@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import { monthRange, toLocalDayKey } from '@/progress/date'
 import type { DashboardSnapshot, RepIncrement } from '@/progress/types'
+import type { ProgressedExerciseForCelebration } from '@/progress/write/exercises/application/PrepareTodayTrainingDayUseCase'
 import type { PlayerStats } from '@/progress/write/exercises/domain/PlayerStats'
 import { useAppServices } from '@/ui/appServices'
 import CompletionCalendar from '@/ui/progress/CompletionCalendar.vue'
@@ -13,6 +14,7 @@ import HomeArchivedExercises from '@/ui/progress/HomeArchivedExercises.vue'
 import HomeExerciseList from '@/ui/progress/HomeExerciseList.vue'
 import HomeHero from '@/ui/progress/HomeHero.vue'
 import { PROGRESS_MESSAGES } from '@/ui/progress/Progress.messages'
+import ProgressionCelebration from '@/ui/progress/ProgressionCelebration.vue'
 import { RouterLink, useRouter } from '@/ui/router/runtime'
 
 const { queries, useCases } = useAppServices()
@@ -37,12 +39,19 @@ const showCelebration = ref(false)
 const expandedExerciseId = ref<string | null>(null)
 const deferredCompletedExerciseId = ref<string | null>(null)
 const deferredExerciseOrder = ref<string[]>([])
+const progressedExercises = ref<ProgressedExerciseForCelebration[]>([])
+const deferProgressionCelebration = ref(false)
 let snackbarTimer: ReturnType<typeof setTimeout> | undefined
 let celebrationTimer: ReturnType<typeof setTimeout> | undefined
 let midnightTimer: ReturnType<typeof setTimeout> | undefined
 let loadSequence = 0
 
 const today = computed(() => toLocalDayKey(now.value))
+const visibleProgressedExercises = computed(() =>
+  showCelebration.value || deferProgressionCelebration.value
+    ? []
+    : progressedExercises.value
+)
 const visibleExercises = computed(() => {
   const exercises = snapshot.value?.exercises ?? []
 
@@ -72,12 +81,42 @@ function clearDeferredExerciseOrder() {
   deferredExerciseOrder.value = []
 }
 
+function queueProgressionCelebration(
+  exercises: readonly ProgressedExerciseForCelebration[]
+) {
+  if (exercises.length === 0) {
+    return
+  }
+
+  const queuedByProgression = new Map(
+    progressedExercises.value.map((exercise) => [
+      `${exercise.exerciseId}:${exercise.previousDailyGoal}:${exercise.nextDailyGoal}`,
+      exercise
+    ])
+  )
+
+  for (const exercise of exercises) {
+    queuedByProgression.set(
+      `${exercise.exerciseId}:${exercise.previousDailyGoal}:${exercise.nextDailyGoal}`,
+      exercise
+    )
+  }
+
+  progressedExercises.value = [...queuedByProgression.values()]
+}
+
+function dismissProgressionCelebration() {
+  progressedExercises.value = []
+}
+
 async function loadSnapshot() {
   const sequence = ++loadSequence
   const range = monthRange(selectedMonth.value)
 
   try {
     const preparation = await useCases.prepareTodayTrainingDay.handle()
+    // Capture the one-shot progression result before rejecting a stale load, or an overlapping refresh could consume the reward without showing it.
+    queueProgressionCelebration(preparation.progressedExercises)
 
     if (sequence !== loadSequence) {
       return
@@ -233,11 +272,12 @@ function resetSnackbarTimer() {
   }, 5000)
 }
 
-function celebrate() {
+function celebrate(onFinished?: () => void) {
   showCelebration.value = true
   clearTimeout(celebrationTimer)
   celebrationTimer = setTimeout(() => {
     showCelebration.value = false
+    onFinished?.()
   }, 3200)
 
   if ('vibrate' in navigator) {
@@ -296,11 +336,17 @@ function refreshAfterVisibilityChange() {
 
 onMounted(() => {
   const celebrateAfterLoad = consumeNavigationCelebration()
+  deferProgressionCelebration.value = celebrateAfterLoad
 
   void loadSnapshot().then(() => {
     if (celebrateAfterLoad) {
-      celebrate()
+      celebrate(() => {
+        deferProgressionCelebration.value = false
+      })
+      return
     }
+
+    deferProgressionCelebration.value = false
   })
   scheduleMidnightRefresh()
   document.addEventListener('visibilitychange', refreshAfterVisibilityChange)
@@ -376,6 +422,11 @@ onUnmounted(() => {
     </Transition>
 
     <CompletionCelebration :visible="showCelebration" />
+
+    <ProgressionCelebration
+      :exercises="visibleProgressedExercises"
+      @dismiss="dismissProgressionCelebration"
+    />
   </div>
 </template>
 

@@ -200,6 +200,11 @@ test.describe('an athlete keeps a hard-earned streak alive', () => {
       await whenTheyReturnToTheDashboard(page)
     })
 
+    await thenTheyCelebrateTheirRaisedGoal(page, {
+      name: 'Push-ups',
+      previousDailyGoal: 15,
+      nextDailyGoal: 16
+    })
     await thenTheirNewExerciseAppears(page, 'Push-ups')
     await whenTheyExpandTheExercise(page, 'Push-ups')
     // A fresh training day resets completed reps to 0 while carrying the earned goal increase from 15 to 16.
@@ -824,6 +829,33 @@ async function thenTheySeeTheirSurplusReps(
       'aria-valuenow',
       String(exercise.dailyGoal)
     )
+  })
+}
+
+async function thenTheyCelebrateTheirRaisedGoal(
+  page: Page,
+  exercise: {
+    name: string
+    previousDailyGoal: number
+    nextDailyGoal: number
+  }
+) {
+  await test.step("Then yesterday's extra effort unlocks today's higher goal", async () => {
+    const reward = page.getByRole('dialog', {
+      name: 'You raised the bar!'
+    })
+
+    await expect(reward).toBeVisible()
+    await expect(reward).toContainText(exercise.name)
+    await expect(
+      reward.getByText(String(exercise.previousDailyGoal), { exact: true })
+    ).toBeVisible()
+    await expect(
+      reward.getByText(String(exercise.nextDailyGoal), { exact: true })
+    ).toBeVisible()
+
+    await reward.getByRole('button', { name: "Start today's quest" }).click()
+    await expect(reward).not.toBeVisible()
   })
 }
 

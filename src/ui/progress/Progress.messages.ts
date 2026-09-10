@@ -52,6 +52,15 @@ export const PROGRESS_MESSAGES = {
       title: 'Misja wykonana!',
       body: 'Wszystkie paski pełne. Seria trwa.'
     },
+    progression: {
+      eyebrow: 'AWANS CELU',
+      title: 'Poprzeczka idzie w górę!',
+      body: 'Wczorajszy dodatkowy wysiłek podniósł Twoje cele na dziś.',
+      dailyGoal: 'DZIENNY CEL',
+      changeAnnouncement:
+        'Dzienny cel dla {name} wzrósł z {previous} do {next}.',
+      action: 'Rozpocznij dzisiejszą misję'
+    },
     form: {
       newEyebrow: 'NOWA MISJA',
       editEyebrow: 'USTAWIENIA MISJI',
@@ -123,6 +132,15 @@ export const PROGRESS_MESSAGES = {
       kicker: 'PERFECT DAY',
       title: 'Quest complete!',
       body: 'Every bar is full. Keep the streak alive.'
+    },
+    progression: {
+      eyebrow: 'GOAL LEVEL UP',
+      title: 'You raised the bar!',
+      body: "Yesterday's extra effort unlocked higher targets for today.",
+      dailyGoal: 'DAILY GOAL',
+      changeAnnouncement:
+        'The daily goal for {name} increased from {previous} to {next}.',
+      action: "Start today's quest"
     },
     form: {
       newEyebrow: 'NEW QUEST',

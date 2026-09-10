@@ -8,6 +8,7 @@ import type {
   DashboardSnapshot,
   ProgressQueries
 } from '@/progress/types'
+import type { ProgressedExerciseForCelebration } from '@/progress/write/exercises/application/PrepareTodayTrainingDayUseCase'
 import { PlayerStats } from '@/progress/write/exercises/domain/PlayerStats'
 import { createAppServicesProvides } from '@/ui/appServices'
 import { createAppI18n } from '@/ui/i18n'
@@ -73,6 +74,18 @@ describe('today’s arcade training dashboard', () => {
     }
   }
 
+  function progressedExercise(
+    overrides: Partial<ProgressedExerciseForCelebration> = {}
+  ): ProgressedExerciseForCelebration {
+    return {
+      exerciseId: 'push-ups',
+      name: 'Push-ups',
+      previousDailyGoal: 15,
+      nextDailyGoal: 16,
+      ...overrides
+    }
+  }
+
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
     vi.setSystemTime(new Date(2026, 7, 24, 12))
@@ -133,11 +146,14 @@ describe('today’s arcade training dashboard', () => {
   }
 
   function givenDayPreparationIsPending() {
-    let finish!: (day: LocalDayKey) => void
+    let finish!: (
+      day: LocalDayKey,
+      progressedExercises?: ProgressedExerciseForCelebration[]
+    ) => void
     vi.mocked(useCases.prepareTodayTrainingDay.handle).mockReturnValueOnce(
       new Promise((resolve) => {
-        finish = (day) =>
-          resolve({ day, stats: stats(), progressedExercises: [] })
+        finish = (day, progressedExercises = []) =>
+          resolve({ day, stats: stats(), progressedExercises })
       })
     )
     return { finish }
@@ -179,6 +195,43 @@ describe('today’s arcade training dashboard', () => {
     expect(dashboard.find('[role="alert"]').exists()).toBe(true)
     expect(dashboard.find('[aria-busy="true"]').exists()).toBe(false)
     expect(queries.getDashboard).not.toHaveBeenCalled()
+  })
+
+  it('celebrates every goal they raised before starting today’s quest', async () => {
+    vi.mocked(useCases.prepareTodayTrainingDay.handle).mockResolvedValueOnce({
+      day: today,
+      stats: stats(),
+      progressedExercises: [
+        progressedExercise(),
+        progressedExercise({
+          exerciseId: 'squats',
+          name: 'Squats',
+          previousDailyGoal: 30,
+          nextDailyGoal: 33
+        })
+      ]
+    })
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    const reward = dashboard.get('[role="dialog"]')
+    expect(reward.text()).toContain('You raised the bar!')
+    expect(reward.findAll('li')).toHaveLength(2)
+    expect(reward.text()).toContain('Push-ups')
+    expect(reward.text()).toContain('15')
+    expect(reward.text()).toContain('16')
+    expect(reward.text()).toContain('Squats')
+    expect(reward.text()).toContain('30')
+    expect(reward.text()).toContain('33')
+
+    await reward.get('button').trigger('click')
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+    expect(dashboard.find('[role="dialog"]').exists()).toBe(false)
+
+    await whenTheyReturnToTheApp()
+
+    expect(dashboard.find('[role="dialog"]').exists()).toBe(false)
   })
 
   it('prepares the new day when midnight passes with the dashboard open', async () => {
@@ -235,7 +288,7 @@ describe('today’s arcade training dashboard', () => {
     const dashboard = openDashboard()
     await whenTheyReturnToTheApp()
 
-    earlierPreparation.finish(shiftLocalDay(today, -1))
+    earlierPreparation.finish(shiftLocalDay(today, -1), [progressedExercise()])
     await flushPromises()
 
     expect(queries.getDashboard).toHaveBeenCalledTimes(1)
@@ -245,6 +298,9 @@ describe('today’s arcade training dashboard', () => {
       '2026-08-31'
     )
     expect(dashboard.find('[role="alert"]').exists()).toBe(false)
+    expect(dashboard.get('[role="dialog"]').text()).toContain(
+      'You raised the bar!'
+    )
   })
 
   async function givenTheyCompleteTheFirstOfTwoExercises() {
