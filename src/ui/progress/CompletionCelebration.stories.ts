@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite'
-import { expect, within } from 'storybook/test'
+import { expect, waitFor, within } from 'storybook/test'
 
 import CompletionCelebration from './CompletionCelebration.vue'
 
@@ -23,10 +23,15 @@ export const DayCompleted: Story = {
     const announcement = canvas.getByRole('status')
 
     await expect(announcement).toHaveAttribute('aria-live', 'assertive')
-    await expect(announcement).toHaveTextContent('Misja wykonana!')
-    await expect(
-      announcement.querySelectorAll('.celebration__confetti span')
-    ).toHaveLength(14)
+    await expect(announcement).toHaveAttribute('aria-atomic', 'true')
+    await waitFor(async () => {
+      await expect(
+        canvas.getByRole('heading', { level: 2, name: 'Misja wykonana!' })
+      ).toBeVisible()
+    })
+    await expect(announcement).toHaveTextContent(
+      'Wszystkie paski pełne. Seria trwa.'
+    )
   }
 }
 
