@@ -9,13 +9,22 @@ import {
   TrainingDay,
   TrainingDayNotOpenForTodayError
 } from '@/progress/write/exercises/domain/TrainingDay'
+import type { TrainingDayProgressionService } from '@/progress/write/exercises/domain/TrainingDayProgressionService'
 import type { ClockPort } from '@/progress/write/shared/ClockPort'
 import type { UnitOfWork } from '@/progress/write/shared/UnitOfWork'
 import type { UseCase } from '@/progress/write/shared/UseCase'
 
+export type ProgressedExerciseForCelebration = {
+  exerciseId: string
+  name: string
+  previousDailyGoal: number
+  nextDailyGoal: number
+}
+
 export type PreparedTodayTrainingDay = {
   day: LocalDayKey
   stats: PlayerStats
+  progressedExercises: ProgressedExerciseForCelebration[]
 }
 
 export class PrepareTodayTrainingDayUseCase implements UseCase<
@@ -28,12 +37,14 @@ export class PrepareTodayTrainingDayUseCase implements UseCase<
     private readonly trainingDayRepo: TrainingDayRepoPort,
     private readonly playerStatsRepo: PlayerStatsRepoPort,
     private readonly dayOutcomeRepo: DayOutcomeRepoPort,
+    private readonly trainingDayProgression: TrainingDayProgressionService,
     private readonly clock: ClockPort
   ) {}
 
   public async handle(): Promise<PreparedTodayTrainingDay> {
     return this.unitOfWork.execute(async () => {
-      const today = toLocalDayKey(this.clock.now())
+      const now = this.clock.now()
+      const today = toLocalDayKey(now)
       const latestTrainingDay = await this.trainingDayRepo.findLatest()
 
       if (latestTrainingDay?.day === today) {
@@ -45,12 +56,36 @@ export class PrepareTodayTrainingDayUseCase implements UseCase<
 
         return {
           day: today,
-          stats: await this.playerStatsRepo.get()
+          stats: await this.playerStatsRepo.get(),
+          progressedExercises: []
         }
       }
 
+      let progressedExercises: ProgressedExerciseForCelebration[] = []
+
       if (latestTrainingDay?.status === 'OPEN') {
-        await this.trainingDayRepo.save(latestTrainingDay.finalize())
+        // TODO: Report progression consistency failures through application
+        // observability once the app has an error-reporting boundary.
+        const progression = this.trainingDayProgression.apply(
+          latestTrainingDay,
+          await this.exerciseRepo.findAll(),
+          now
+        )
+
+        await this.trainingDayRepo.save(progression.finalizedTrainingDay)
+
+        for (const progressedExercise of progression.progressedExercises) {
+          await this.exerciseRepo.save(progressedExercise.exercise)
+        }
+
+        progressedExercises = progression.progressedExercises.map(
+          ({ exercise, previousDailyGoal }) => ({
+            exerciseId: exercise.id,
+            name: exercise.name,
+            previousDailyGoal,
+            nextDailyGoal: exercise.dailyGoal
+          })
+        )
       }
 
       const stats = await this.finalizeElapsedDays(latestTrainingDay, today)
@@ -58,7 +93,7 @@ export class PrepareTodayTrainingDayUseCase implements UseCase<
       const activeExercises = await this.exerciseRepo.findAllActive()
       await this.trainingDayRepo.save(TrainingDay.open(today, activeExercises))
 
-      return { day: today, stats }
+      return { day: today, stats, progressedExercises }
     })
   }
 

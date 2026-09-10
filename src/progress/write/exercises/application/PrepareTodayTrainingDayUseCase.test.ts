@@ -14,6 +14,7 @@ import {
   TrainingDay,
   TrainingDayNotOpenForTodayError
 } from '@/progress/write/exercises/domain/TrainingDay'
+import { TrainingDayProgressionService } from '@/progress/write/exercises/domain/TrainingDayProgressionService'
 import type { UnitOfWork } from '@/progress/write/shared/UnitOfWork'
 
 class StoryUnitOfWork implements UnitOfWork {
@@ -47,6 +48,7 @@ describe('an athlete preparing today by opening the dashboard', () => {
       trainingDayRepo,
       playerStatsRepo,
       dayOutcomeRepo,
+      new TrainingDayProgressionService(),
       { now: () => now }
     )
   })
@@ -115,6 +117,7 @@ describe('an athlete preparing today by opening the dashboard', () => {
       availableShields: 0,
       completedDaysTowardNextShield: 0
     })
+    expect(preparation.progressedExercises).toEqual([])
 
     expect(unitOfWork.executions).toBe(1)
     expect(
@@ -136,6 +139,7 @@ describe('an athlete preparing today by opening the dashboard', () => {
     expect(firstPreparation.stats).toBe(refreshedPreparation.stats)
     expect(refreshedPreparation.day).toBe(today)
     expect(refreshedPreparation.stats.currentStreak).toBe(0)
+    expect(refreshedPreparation.progressedExercises).toEqual([])
     expect(await trainingDayRepo.findLatest()).toBe(originalDay)
     expect(originalDay?.isComplete).toBe(true)
     expect(originalDay?.repLogs).toHaveLength(2)
@@ -201,6 +205,62 @@ describe('an athlete preparing today by opening the dashboard', () => {
         exercises: [
           { exerciseId: 'existing-squats', name: 'Squats', dailyGoal: 20 }
         ]
+      }
+    ])
+  })
+
+  it('raises an earned goal once and reports it for celebration', async () => {
+    const squats = givenAnExerciseWithThisName(
+      'Squats',
+      null,
+      'existing-squats'
+    )
+    // 22 reps clear the 20-rep goal and reach the 10% surplus required to raise it to 21.
+    const repLogs = [10, 10, 1, 1].map((amount, index) =>
+      RepLog.restore({
+        id: `squats-set-${index}`,
+        exerciseId: squats.id,
+        day: '2026-08-23',
+        amount: amount as 1 | 10,
+        createdAt: now.toISOString()
+      })
+    )
+    givenATrainingDay('2026-08-23', [squats], 'OPEN', repLogs)
+
+    const firstPreparation = await whenTheyOpenTheDashboard()
+    const refreshedPreparation = await whenTheyOpenTheDashboard()
+
+    // The rollover reports the earned goal once so refreshing cannot repeat the celebration.
+    expect(firstPreparation.progressedExercises).toEqual([
+      {
+        exerciseId: squats.id,
+        name: 'Squats',
+        previousDailyGoal: 20,
+        nextDailyGoal: 21
+      }
+    ])
+    expect(refreshedPreparation.progressedExercises).toEqual([])
+    expect(
+      exerciseRepo.savedExercises.map((exercise) => exercise.toSnapshot())
+    ).toMatchObject([
+      {
+        id: squats.id,
+        dailyGoal: 21,
+        updatedAt: now.toISOString()
+      }
+    ])
+    expect(
+      trainingDayRepo.savedTrainingDays.map((day) => day.toSnapshot())
+    ).toEqual([
+      {
+        day: '2026-08-23',
+        status: 'FINALIZED',
+        exercises: [{ exerciseId: squats.id, name: 'Squats', dailyGoal: 20 }]
+      },
+      {
+        day: today,
+        status: 'OPEN',
+        exercises: [{ exerciseId: squats.id, name: 'Squats', dailyGoal: 21 }]
       }
     ])
   })

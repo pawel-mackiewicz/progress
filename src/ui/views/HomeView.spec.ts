@@ -83,7 +83,8 @@ describe('today’s arcade training dashboard', () => {
       prepareTodayTrainingDay: {
         handle: vi.fn().mockImplementation(async () => ({
           day: toLocalDayKey(),
-          stats: stats()
+          stats: stats(),
+          progressedExercises: []
         }))
       },
       addRep: { handle: vi.fn() },
@@ -135,7 +136,8 @@ describe('today’s arcade training dashboard', () => {
     let finish!: (day: LocalDayKey) => void
     vi.mocked(useCases.prepareTodayTrainingDay.handle).mockReturnValueOnce(
       new Promise((resolve) => {
-        finish = (day) => resolve({ day, stats: stats() })
+        finish = (day) =>
+          resolve({ day, stats: stats(), progressedExercises: [] })
       })
     )
     return { finish }
@@ -327,7 +329,8 @@ describe('today’s arcade training dashboard', () => {
     const protectedDay = shiftLocalDay(today, -1)
     vi.mocked(useCases.prepareTodayTrainingDay.handle).mockResolvedValue({
       day: today,
-      stats: stats({ currentStreak: 9, availableShields: 1 })
+      stats: stats({ currentStreak: 9, availableShields: 1 }),
+      progressedExercises: []
     })
     vi.mocked(queries.getDashboard).mockResolvedValue(
       snapshot({

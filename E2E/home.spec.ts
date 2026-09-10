@@ -176,7 +176,7 @@ test.describe('an athlete clears one exercise while another still needs work', (
 })
 
 test.describe('an athlete keeps a hard-earned streak alive', () => {
-  test('closes yesterday and opens a fresh plan simply by returning to the dashboard', async ({
+  test('progresses an exceeded goal while opening the next training day', async ({
     page
   }) => {
     await page.clock.setFixedTime(new Date('2026-08-24T08:00:00.000Z'))
@@ -188,6 +188,12 @@ test.describe('an athlete keeps a hard-earned streak alive', () => {
     await thenTheySeeFiveRepsRemaining(page, 'Push-ups')
     await whenTheyRecordFiveReps(page, 'Push-ups')
     await thenTheySeeThatTodaysGoalIsComplete(page, 'Push-ups')
+    await whenTheyExceedTheGoalByTwoReps(page, 'Push-ups')
+    await thenTheySeeTheirSurplusReps(page, {
+      name: 'Push-ups',
+      completedReps: 17,
+      dailyGoal: 15
+    })
 
     await test.step('When they return the next morning without registering another exercise', async () => {
       await page.clock.setFixedTime(new Date('2026-08-25T08:00:00.000Z'))
@@ -196,13 +202,14 @@ test.describe('an athlete keeps a hard-earned streak alive', () => {
 
     await thenTheirNewExerciseAppears(page, 'Push-ups')
     await whenTheyExpandTheExercise(page, 'Push-ups')
+    // A fresh training day resets completed reps to 0 while carrying the earned goal increase from 15 to 16.
     await thenTheirNewExerciseStartsAtZero(page, {
       name: 'Push-ups',
-      dailyGoal: 15
+      dailyGoal: 16
     })
     await expect(page.getByText('1 day streak', { exact: true })).toBeVisible()
     await thenTheCalendarShowsTheCompletedDay(page, '2026-08-24')
-    await test.step('Then yesterday is finalized and today has the same exercise plan', async () => {
+    await test.step('Then yesterday keeps its original goal and today uses the earned goal', async () => {
       await expect
         .poll(() => readTrainingHistory(page))
         .toMatchObject({
@@ -215,7 +222,7 @@ test.describe('an athlete keeps a hard-earned streak alive', () => {
             {
               day: '2026-08-25',
               status: 'OPEN',
-              exercises: [{ name: 'Push-ups', dailyGoal: 15 }]
+              exercises: [{ name: 'Push-ups', dailyGoal: 16 }]
             }
           ],
           dayOutcomes: [{ day: '2026-08-24', result: 'COMPLETED' }]
@@ -786,6 +793,37 @@ async function whenTheyRecordFiveReps(page: Page, exerciseName: string) {
     await page
       .getByRole('button', { name: `Add 5 reps to ${exerciseName}` })
       .click()
+  })
+}
+
+async function whenTheyExceedTheGoalByTwoReps(
+  page: Page,
+  exerciseName: string
+) {
+  await test.step('And they exceed the goal by two reps', async () => {
+    const addOneRep = page.getByRole('button', {
+      name: `Add 1 rep to ${exerciseName}`
+    })
+
+    await addOneRep.click()
+    await addOneRep.click()
+  })
+}
+
+async function thenTheySeeTheirSurplusReps(
+  page: Page,
+  exercise: { name: string; completedReps: number; dailyGoal: number }
+) {
+  await test.step('Then the surplus reps remain visible beyond the completed goal', async () => {
+    const progress = progressFor(page, exercise.name)
+    await expect(progress).toHaveAccessibleName(
+      `Progress for ${exercise.name}: ${exercise.completedReps} of ${exercise.dailyGoal}`
+    )
+    // ARIA progress values cannot exceed their maximum, so the label carries the full 17/15 result while the value stays capped at 15.
+    await expect(progress).toHaveAttribute(
+      'aria-valuenow',
+      String(exercise.dailyGoal)
+    )
   })
 }
 

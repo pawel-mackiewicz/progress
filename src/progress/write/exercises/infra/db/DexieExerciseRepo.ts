@@ -14,13 +14,16 @@ export class DexieExerciseRepo implements ExerciseRepoPort {
     return exercise ? Exercise.restore(exercise) : undefined
   }
 
-  public async findAllActive(): Promise<Exercise[]> {
+  public async findAll(): Promise<Exercise[]> {
     const exercises = await this.database.exercises.toArray()
 
     return exercises
-      .filter((exercise) => exercise.archivedAt === null)
       .sort((first, second) => first.createdAt.localeCompare(second.createdAt))
       .map(Exercise.restore)
+  }
+
+  public async findAllActive(): Promise<Exercise[]> {
+    return (await this.findAll()).filter((exercise) => !exercise.isArchived())
   }
 
   public async existsActiveByName(

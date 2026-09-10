@@ -93,7 +93,7 @@ describe('an exercise stored on the athlete’s device', () => {
     })
   })
 
-  it('loads the active plan in the order the athlete created it', async () => {
+  it('loads the complete collection and the active plan in creation order', async () => {
     await database.exercises.bulkAdd([
       {
         id: 'second',
@@ -121,9 +121,15 @@ describe('an exercise stored on the athlete’s device', () => {
       }
     ])
 
-    const exercises = await repository.findAllActive()
+    const allExercises = await repository.findAll()
+    const activeExercises = await repository.findAllActive()
 
-    expect(exercises.map((exercise) => exercise.id)).toEqual([
+    expect(allExercises.map((exercise) => exercise.id)).toEqual([
+      'archived',
+      'first',
+      'second'
+    ])
+    expect(activeExercises.map((exercise) => exercise.id)).toEqual([
       'first',
       'second'
     ])

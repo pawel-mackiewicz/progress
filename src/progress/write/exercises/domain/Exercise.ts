@@ -1,3 +1,5 @@
+import type { DailyGoalProgression } from '@/progress/write/exercises/domain/TrainingDay'
+
 export type RegisterExerciseInput = {
   name: string
   dailyGoal: number
@@ -16,6 +18,7 @@ export type ExerciseSnapshot = {
 export class DuplicateExerciseNameError extends Error {}
 export class ExerciseNotFoundError extends Error {}
 export class ExerciseArchivedError extends Error {}
+export class ExerciseProgressionMismatchError extends Error {}
 
 export function normalizeExerciseName(name: string) {
   return name.trim().toLocaleLowerCase()
@@ -99,6 +102,30 @@ export class Exercise {
       this._createdAt,
       now,
       null
+    )
+  }
+
+  public applyProgression(
+    progression: DailyGoalProgression,
+    progressedAt: Date
+  ): Exercise {
+    if (
+      progression.exerciseId !== this.id ||
+      progression.previousDailyGoal !== this.dailyGoal ||
+      progression.nextDailyGoal <= progression.previousDailyGoal
+    ) {
+      throw new ExerciseProgressionMismatchError(
+        'The daily-goal progression does not match the current exercise.'
+      )
+    }
+
+    return new Exercise(
+      this.id,
+      this.name,
+      progression.nextDailyGoal,
+      this._createdAt,
+      progressedAt,
+      this._archivedAt
     )
   }
 

@@ -5,6 +5,7 @@ import {
 
 export interface ExerciseRepoPort {
   findById(id: string): Promise<Exercise | undefined>
+  findAll(): Promise<Exercise[]>
   findAllActive(): Promise<Exercise[]>
   existsActiveByName(name: string, ignoredId?: string): Promise<boolean>
   save(exercise: Exercise): Promise<void>
@@ -25,7 +26,7 @@ export class FakeExerciseRepo implements ExerciseRepoPort {
       .find((exercise) => exercise.id === id)
   }
 
-  public async findAllActive(): Promise<Exercise[]> {
+  public async findAll(): Promise<Exercise[]> {
     const exercisesById = new Map<string, Exercise>()
 
     for (const exercise of [
@@ -35,12 +36,13 @@ export class FakeExerciseRepo implements ExerciseRepoPort {
       exercisesById.set(exercise.id, exercise)
     }
 
-    return [...exercisesById.values()]
-      .filter((exercise) => !exercise.isArchived())
-      .sort(
-        (first, second) =>
-          first.createdAt.getTime() - second.createdAt.getTime()
-      )
+    return [...exercisesById.values()].sort(
+      (first, second) => first.createdAt.getTime() - second.createdAt.getTime()
+    )
+  }
+
+  public async findAllActive(): Promise<Exercise[]> {
+    return (await this.findAll()).filter((exercise) => !exercise.isArchived())
   }
 
   public async existsActiveByName(

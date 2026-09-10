@@ -1,12 +1,33 @@
 import { describe, expect, it } from 'vitest'
 
+import type { RepIncrement } from '@/progress/types'
 import { Exercise } from '@/progress/write/exercises/domain/Exercise'
-import { TrainingDay } from '@/progress/write/exercises/domain/TrainingDay'
+import {
+  TrainingDay,
+  TrainingDayNotFinalizedError
+} from '@/progress/write/exercises/domain/TrainingDay'
 
 const now = new Date('2026-08-24T08:00:00.000Z')
 
 function anExercise(id: string, dailyGoal: number) {
   return Exercise.register({ name: id, dailyGoal }, id, now)
+}
+
+function afterRecording(
+  day: TrainingDay,
+  exerciseId: string,
+  amounts: RepIncrement[]
+) {
+  return amounts.reduce(
+    (currentDay, amount, index) =>
+      currentDay.recordReps(
+        exerciseId,
+        amount,
+        `${exerciseId}-set-${index}`,
+        now
+      ).trainingDay,
+    day
+  )
 }
 
 describe('today’s mutable training plan', () => {
@@ -71,5 +92,60 @@ describe('today’s mutable training plan', () => {
 
     day = day.removeExercise('push-ups')
     expect(day.isComplete).toBe(false)
+  })
+
+  it('waits until the day is finalized before recalculating future goals', () => {
+    const day = TrainingDay.open('2026-08-24', [anExercise('push-ups', 10)])
+
+    expect(() => day.recalculateDailyGoals()).toThrowError(
+      TrainingDayNotFinalizedError
+    )
+  })
+
+  it('recalculates earned goals after a completed day is finalized', () => {
+    const pullUps = anExercise('pull-ups', 10)
+    const pushUps = anExercise('push-ups', 20)
+    let day = TrainingDay.open('2026-08-24', [pullUps, pushUps])
+    // Small goals need two surplus reps; goals from 20 upward need a 10% surplus.
+    day = afterRecording(day, pullUps.id, [10, 1, 1])
+    day = afterRecording(day, pushUps.id, [10, 10, 1, 1])
+
+    const progressions = day.finalize().recalculateDailyGoals()
+
+    expect(progressions).toEqual([
+      {
+        exerciseId: pullUps.id,
+        previousDailyGoal: 10,
+        nextDailyGoal: 11
+      },
+      {
+        exerciseId: pushUps.id,
+        previousDailyGoal: 20,
+        nextDailyGoal: 21
+      }
+    ])
+  })
+
+  it('keeps every goal when the finalized training day is incomplete', () => {
+    const pullUps = anExercise('pull-ups', 10)
+    const squats = anExercise('squats', 10)
+    let day = TrainingDay.open('2026-08-24', [pullUps, squats])
+    day = afterRecording(day, pullUps.id, [10, 1, 1])
+    day = afterRecording(day, squats.id, [5])
+
+    const progressions = day.finalize().recalculateDailyGoals()
+
+    expect(progressions).toEqual([])
+  })
+
+  it('keeps same goal when the completed exercise has only one surplus rep', () => {
+    const pullUps = anExercise('pull-ups', 10)
+    let day = TrainingDay.open('2026-08-24', [pullUps])
+    day = afterRecording(day, pullUps.id, [10, 1])
+
+    const progressions = day.finalize().recalculateDailyGoals()
+
+    expect(day.isComplete).toBe(true)
+    expect(progressions).toEqual([])
   })
 })

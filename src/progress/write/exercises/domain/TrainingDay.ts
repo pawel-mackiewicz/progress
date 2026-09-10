@@ -23,8 +23,15 @@ export type ExerciseProgress = {
   isCompleted: boolean
 }
 
+export type DailyGoalProgression = {
+  exerciseId: string
+  previousDailyGoal: number
+  nextDailyGoal: number
+}
+
 export class TrainingDayFinalizedError extends Error {}
 export class TrainingDayNotOpenForTodayError extends Error {}
+export class TrainingDayNotFinalizedError extends Error {}
 export class ExerciseNotInTrainingDayError extends Error {}
 export class RepLogNotInOpenDayError extends Error {}
 
@@ -220,6 +227,40 @@ export class TrainingDay {
     this.ensureOpen()
 
     return new TrainingDay(this.day, 'FINALIZED', this.exercisePlan, this.logs)
+  }
+
+  public recalculateDailyGoals(): DailyGoalProgression[] {
+    if (this.status !== 'FINALIZED') {
+      throw new TrainingDayNotFinalizedError(
+        'Daily goals can only be recalculated after the training day is finalized.'
+      )
+    }
+
+    if (!this.isComplete) {
+      return []
+    }
+
+    return this.exercisePlan.flatMap((exercise) => {
+      const { completedReps } = this.getExerciseProgress(exercise.exerciseId)
+      const usesTwoRepThreshold = exercise.dailyGoal < 20
+      const earnedProgression = usesTwoRepThreshold
+        ? completedReps >= exercise.dailyGoal + 2
+        : completedReps * 10 >= exercise.dailyGoal * 11
+
+      if (!earnedProgression) {
+        return []
+      }
+
+      return [
+        {
+          exerciseId: exercise.exerciseId,
+          previousDailyGoal: exercise.dailyGoal,
+          nextDailyGoal: usesTwoRepThreshold
+            ? exercise.dailyGoal + 1
+            : Math.round((exercise.dailyGoal * 105) / 100)
+        }
+      ]
+    })
   }
 
   public toSnapshot(): TrainingDaySnapshot {

@@ -3,7 +3,6 @@ import { reactive } from 'vue'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
 import type { AppUseCases } from '@/appServices'
-import { toLocalDayKey } from '@/progress/date'
 import { TrainingDayNotOpenForTodayError } from '@/progress/write/exercises/domain/TrainingDay'
 import type { Exercise, ProgressQueries } from '@/progress/types'
 import { createAppServicesProvides } from '@/ui/appServices'
@@ -27,7 +26,7 @@ describe('the exercise mission form', () => {
     push = vi.fn().mockResolvedValue(undefined)
     useCases = {
       prepareTodayTrainingDay: {
-        handle: vi.fn().mockResolvedValue(toLocalDayKey())
+        handle: vi.fn()
       },
       addRep: { handle: vi.fn() },
       undoRep: { handle: vi.fn().mockResolvedValue(undefined) },

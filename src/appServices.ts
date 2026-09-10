@@ -26,6 +26,7 @@ import type { RegisterExerciseCommand } from '@/progress/write/exercises/applica
 import type { RestoreExerciseCommand } from '@/progress/write/exercises/application/requests/RestoreExerciseCommand'
 import type { UndoRepCommand } from '@/progress/write/exercises/application/requests/UndoRepCommand'
 import type { UpdateExerciseCommand } from '@/progress/write/exercises/application/requests/UpdateExerciseCommand'
+import { TrainingDayProgressionService } from '@/progress/write/exercises/domain/TrainingDayProgressionService'
 import { DexieDayOutcomeRepo } from '@/progress/write/exercises/infra/db/DexieDayOutcomeRepo'
 import { DexieExerciseRepo } from '@/progress/write/exercises/infra/db/DexieExerciseRepo'
 import { DexiePlayerStatsRepo } from '@/progress/write/exercises/infra/db/DexiePlayerStatsRepo'
@@ -62,6 +63,7 @@ export function createAppServices(database: ProgressDatabase): AppServices {
   const dayOutcomeRepo = new DexieDayOutcomeRepo(database)
   const idGenerator = new IdGenerator()
   const clock = new SystemClock()
+  const trainingDayProgression = new TrainingDayProgressionService()
 
   return {
     database,
@@ -73,6 +75,7 @@ export function createAppServices(database: ProgressDatabase): AppServices {
         trainingDayRepo,
         playerStatsRepo,
         dayOutcomeRepo,
+        trainingDayProgression,
         clock
       ),
       addRep: new AddRepUseCase(
