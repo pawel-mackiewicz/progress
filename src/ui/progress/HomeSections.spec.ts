@@ -207,6 +207,6 @@ describe('the home dashboard sections', () => {
       'aria-live': 'assertive'
     })
     expect(celebration.text()).toContain('Quest complete!')
-    expect(celebration.findAll('.celebration__confetti span')).toHaveLength(14)
+    expect(celebration.findAll('.celebration__confetti span')).toHaveLength(22)
   })
 })
