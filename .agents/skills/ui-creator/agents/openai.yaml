@@ -1,0 +1,8 @@
+interface:
+  display_name: 'UI Creator'
+  short_description: 'Beautiful, dopamine-rich Vue PWA interfaces'
+  brand_color: '#32EFFF'
+  default_prompt: 'Create new UI slice'
+
+policy:
+  allow_implicit_invocation: true

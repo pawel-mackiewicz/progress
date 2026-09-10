@@ -1,0 +1,4 @@
+interface:
+  display_name: 'Domain Feature Planning'
+  short_description: 'Decision-complete write-side feature plans'
+  default_prompt: 'Lets plan out this new feature'
