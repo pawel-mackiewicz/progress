@@ -28,6 +28,7 @@ const { t } = useI18n({
     class="home-exercises__item"
     :class="{
       'home-exercises__item--complete': exercise.isComplete,
+      'home-exercises__item--progression-ready': exercise.isProgressionReady,
       'home-exercises__item--expanded': expanded
     }"
   >
@@ -79,19 +80,45 @@ const { t } = useI18n({
         class="home-exercises__progress"
         role="progressbar"
         :aria-label="
-          t('card.progress', {
-            name: exercise.name,
-            current: exercise.completedReps,
-            goal: exercise.dailyGoal
-          })
+          exercise.isComplete
+            ? t('card.progressionProgress', {
+                name: exercise.name,
+                current: Math.min(
+                  exercise.completedReps - exercise.dailyGoal,
+                  exercise.progressionThresholdReps - exercise.dailyGoal
+                ),
+                goal: exercise.progressionThresholdReps - exercise.dailyGoal
+              })
+            : t('card.progress', {
+                name: exercise.name,
+                current: exercise.completedReps,
+                goal: exercise.dailyGoal
+              })
         "
-        :aria-valuemax="exercise.dailyGoal"
-        :aria-valuenow="Math.min(exercise.completedReps, exercise.dailyGoal)"
+        :aria-valuemax="
+          exercise.isComplete
+            ? exercise.progressionThresholdReps - exercise.dailyGoal
+            : exercise.dailyGoal
+        "
+        :aria-valuenow="
+          exercise.isComplete
+            ? Math.min(
+                exercise.completedReps - exercise.dailyGoal,
+                exercise.progressionThresholdReps - exercise.dailyGoal
+              )
+            : exercise.completedReps
+        "
         aria-valuemin="0"
       >
         <span
           class="home-exercises__progress-fill"
-          :style="{ width: `${exercise.progressPercent}%` }"
+          :style="{
+            width: `${
+              exercise.isComplete
+                ? exercise.progressionPercent
+                : exercise.progressPercent
+            }%`
+          }"
         />
       </div>
     </div>
@@ -159,6 +186,11 @@ const { t } = useI18n({
   border-color: rgb(from var(--color-success) r g b / 0.55);
 }
 
+.home-exercises__item--progression-ready .home-exercises__toggle {
+  border-color: rgb(from var(--color-progression) r g b / 0.72);
+  box-shadow: 0 0 1.2rem rgb(from var(--color-progression) r g b / 0.12);
+}
+
 .home-exercises__status-icon {
   display: inline-flex;
   color: var(--color-primary);
@@ -207,9 +239,18 @@ const { t } = useI18n({
   transition: width 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.home-exercises__item--complete .home-exercises__progress {
+  background: rgb(from var(--color-progression) r g b / 0.06);
+  box-shadow: inset 0 0 0 1px rgb(from var(--color-progression) r g b / 0.24);
+}
+
 .home-exercises__item--complete .home-exercises__progress-fill {
-  background: var(--color-success);
-  box-shadow: 0 0 0.7rem var(--color-success);
+  background: linear-gradient(
+    90deg,
+    rgb(from var(--color-progression) r g b / 0.72),
+    var(--color-progression)
+  );
+  box-shadow: 0 0 0.7rem rgb(from var(--color-progression) r g b / 0.72);
 }
 
 .home-exercises__item--expanded :deep(.exercise-card) {

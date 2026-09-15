@@ -88,17 +88,26 @@ export class DexieProgressQueries implements ProgressQueries {
     const activeExercises = sortExercises(
       allExercises.filter((exercise) => !exercise.archivedAt)
     )
-    const todayTotals = sumRepsByExercise(
-      repLogs.filter((repLog) => repLog.day === day)
+    const todayRepLogs = repLogs
+      .filter((repLog) => repLog.day === day)
+      .map(RepLogEntity.restore)
+    const trainingDay = TrainingDay.restore(
+      currentTrainingDay ?? {
+        day,
+        status: 'OPEN',
+        exercises: activeExercises.map((exercise) => ({
+          exerciseId: exercise.id,
+          name: exercise.name,
+          dailyGoal: exercise.dailyGoal
+        }))
+      },
+      todayRepLogs
     )
-    const isDayComplete = currentTrainingDay
-      ? TrainingDay.restore(
-          currentTrainingDay,
-          repLogs
-            .filter((repLog) => repLog.day === day)
-            .map(RepLogEntity.restore)
-        ).isComplete
-      : false
+    const exercisesProgress = trainingDay.getExercisesProgress()
+    const progressByExerciseId = new Map(
+      exercisesProgress.map((progress) => [progress.exerciseId, progress])
+    )
+    const isDayComplete = trainingDay.isComplete
     const dayOutcomes = [...visibleOutcomes]
 
     if (isDayComplete && monthStart <= day && day <= monthEnd) {
@@ -122,17 +131,39 @@ export class DexieProgressQueries implements ProgressQueries {
     )
     const exercises = moveCompletedExercisesToBottom(
       activeExercises.map<DashboardExercise>((exercise) => {
-        const completedReps = todayTotals.get(exercise.id) ?? 0
+        const progress = progressByExerciseId.get(exercise.id)
+
+        if (!progress) {
+          throw new Error('Active exercise is missing from the training day.')
+        }
+
+        const extraReps = Math.max(
+          progress.completedReps - progress.dailyGoal,
+          0
+        )
+        const extraRepsThreshold =
+          progress.progressionThresholdReps - progress.dailyGoal
 
         return {
           ...exercise,
-          completedReps,
-          remainingReps: Math.max(exercise.dailyGoal - completedReps, 0),
+          dailyGoal: progress.dailyGoal,
+          completedReps: progress.completedReps,
+          remainingReps: Math.max(
+            progress.dailyGoal - progress.completedReps,
+            0
+          ),
           progressPercent: Math.min(
-            Math.round((completedReps / exercise.dailyGoal) * 100),
+            Math.round((progress.completedReps / progress.dailyGoal) * 100),
             100
           ),
-          isComplete: completedReps >= exercise.dailyGoal,
+          progressionThresholdReps: progress.progressionThresholdReps,
+          remainingRepsToProgression: progress.remainingRepsToProgression,
+          progressionPercent: Math.min(
+            Math.round((extraReps / extraRepsThreshold) * 100),
+            100
+          ),
+          isComplete: progress.isCompleted,
+          isProgressionReady: progress.isProgressionReady,
           yesterdayReps: yesterdayTotals.get(exercise.id) ?? 0,
           previousMaxReps: previousMaximums.get(exercise.id) ?? 0
         }

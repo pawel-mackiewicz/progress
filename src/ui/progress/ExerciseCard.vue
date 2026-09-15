@@ -25,7 +25,10 @@ const { t } = useI18n({
 <template>
   <article
     class="exercise-card"
-    :class="{ 'exercise-card--complete': exercise.isComplete }"
+    :class="{
+      'exercise-card--complete': exercise.isComplete,
+      'exercise-card--progression-ready': exercise.isProgressionReady
+    }"
     :data-testid="`exercise-card-${exercise.id}`"
   >
     <div
@@ -48,7 +51,18 @@ const { t } = useI18n({
         </span>
         <span class="exercise-card__status">
           <template v-if="exercise.isComplete">
-            {{ t('card.completed') }}
+            <template v-if="exercise.isProgressionReady">
+              {{ t('card.progressionReady') }}
+            </template>
+            <template v-else>
+              {{
+                t(
+                  'card.progressionRemaining',
+                  { count: exercise.remainingRepsToProgression },
+                  exercise.remainingRepsToProgression
+                )
+              }}
+            </template>
           </template>
           <template v-else>
             {{ t('card.remaining', { count: exercise.remainingReps }) }}
@@ -71,7 +85,18 @@ const { t } = useI18n({
         </div>
         <p class="exercise-card__status">
           <template v-if="exercise.isComplete">
-            {{ t('card.completed') }}
+            <template v-if="exercise.isProgressionReady">
+              {{ t('card.progressionReady') }}
+            </template>
+            <template v-else>
+              {{
+                t(
+                  'card.progressionRemaining',
+                  { count: exercise.remainingRepsToProgression },
+                  exercise.remainingRepsToProgression
+                )
+              }}
+            </template>
           </template>
           <template v-else>
             {{ t('card.remaining', { count: exercise.remainingReps }) }}
@@ -106,19 +131,45 @@ const { t } = useI18n({
       class="exercise-card__progress"
       role="progressbar"
       :aria-label="
-        t('card.progress', {
-          name: exercise.name,
-          current: exercise.completedReps,
-          goal: exercise.dailyGoal
-        })
+        exercise.isComplete
+          ? t('card.progressionProgress', {
+              name: exercise.name,
+              current: Math.min(
+                exercise.completedReps - exercise.dailyGoal,
+                exercise.progressionThresholdReps - exercise.dailyGoal
+              ),
+              goal: exercise.progressionThresholdReps - exercise.dailyGoal
+            })
+          : t('card.progress', {
+              name: exercise.name,
+              current: exercise.completedReps,
+              goal: exercise.dailyGoal
+            })
       "
-      :aria-valuemax="exercise.dailyGoal"
-      :aria-valuenow="Math.min(exercise.completedReps, exercise.dailyGoal)"
+      :aria-valuemax="
+        exercise.isComplete
+          ? exercise.progressionThresholdReps - exercise.dailyGoal
+          : exercise.dailyGoal
+      "
+      :aria-valuenow="
+        exercise.isComplete
+          ? Math.min(
+              exercise.completedReps - exercise.dailyGoal,
+              exercise.progressionThresholdReps - exercise.dailyGoal
+            )
+          : exercise.completedReps
+      "
       aria-valuemin="0"
     >
       <span
         class="exercise-card__progress-fill"
-        :style="{ width: `${exercise.progressPercent}%` }"
+        :style="{
+          width: `${
+            exercise.isComplete
+              ? exercise.progressionPercent
+              : exercise.progressPercent
+          }%`
+        }"
       />
     </div>
 
@@ -357,7 +408,14 @@ const { t } = useI18n({
 }
 
 .exercise-card--complete .exercise-card__status {
-  color: var(--color-success);
+  color: var(--color-progression);
+}
+
+.exercise-card--progression-ready {
+  border-color: rgb(from var(--color-progression) r g b / 0.72);
+  box-shadow:
+    0 0 1.8rem rgb(from var(--color-progression) r g b / 0.16),
+    0 1rem 2.5rem rgb(0 0 0 / 0.26);
 }
 
 .exercise-card__icon-button {
@@ -434,9 +492,18 @@ const { t } = useI18n({
   transition: width 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.exercise-card--complete .exercise-card__progress {
+  border-color: rgb(from var(--color-progression) r g b / 0.34);
+  background: rgb(from var(--color-progression) r g b / 0.06);
+}
+
 .exercise-card--complete .exercise-card__progress-fill {
-  background: var(--color-success);
-  box-shadow: 0 0 1rem var(--color-success);
+  background: linear-gradient(
+    90deg,
+    rgb(from var(--color-progression) r g b / 0.72),
+    var(--color-progression)
+  );
+  box-shadow: 0 0 1rem rgb(from var(--color-progression) r g b / 0.72);
 }
 
 .exercise-card__actions {

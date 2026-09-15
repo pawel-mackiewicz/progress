@@ -38,7 +38,11 @@ const meta: Meta<HomeExerciseListStoryArgs> = {
         completedReps: 30,
         remainingReps: 0,
         progressPercent: 100,
-        isComplete: true
+        progressionThresholdReps: 33,
+        remainingRepsToProgression: 3,
+        progressionPercent: 0,
+        isComplete: true,
+        isProgressionReady: false
       })
     ],
     expandedExerciseId: 'push-ups',
@@ -89,6 +93,9 @@ const meta: Meta<HomeExerciseListStoryArgs> = {
           }
 
           const completedReps = exercise.completedReps + amount
+          const extraReps = Math.max(completedReps - exercise.dailyGoal, 0)
+          const extraRepsThreshold =
+            exercise.progressionThresholdReps - exercise.dailyGoal
 
           return {
             ...exercise,
@@ -98,7 +105,17 @@ const meta: Meta<HomeExerciseListStoryArgs> = {
               Math.round((completedReps / exercise.dailyGoal) * 100),
               100
             ),
-            isComplete: completedReps >= exercise.dailyGoal
+            remainingRepsToProgression: Math.max(
+              exercise.progressionThresholdReps - completedReps,
+              0
+            ),
+            progressionPercent: Math.min(
+              Math.round((extraReps / extraRepsThreshold) * 100),
+              100
+            ),
+            isComplete: completedReps >= exercise.dailyGoal,
+            isProgressionReady:
+              completedReps >= exercise.progressionThresholdReps
           }
         })
       }
@@ -136,7 +153,8 @@ export const DailyQuestList: Story = {
       createDashboardExercise({
         completedReps: 35,
         remainingReps: 5,
-        progressPercent: 88
+        progressPercent: 88,
+        remainingRepsToProgression: 9
       }),
       createDashboardExercise({
         id: 'squats',
@@ -145,7 +163,11 @@ export const DailyQuestList: Story = {
         completedReps: 30,
         remainingReps: 0,
         progressPercent: 100,
-        isComplete: true
+        progressionThresholdReps: 33,
+        remainingRepsToProgression: 3,
+        progressionPercent: 0,
+        isComplete: true,
+        isProgressionReady: false
       })
     ],
     expandedExerciseId: null
@@ -179,12 +201,14 @@ export const DailyQuestList: Story = {
         canvas.getByRole('button', { name: 'Dodaj 5 powtórzeń do Pompki' })
       )
       await expect(args.onAdd).toHaveBeenCalledWith('push-ups', 'Pompki', 5)
-      await expect(canvas.getByText('CEL ZALICZONY')).toBeInTheDocument()
+      await expect(
+        canvas.getByText('4 powtórzenia do awansu')
+      ).toBeInTheDocument()
       await expect(
         canvas.getByRole('progressbar', {
-          name: 'Postęp dla Pompki: 40 z 40'
+          name: 'Postęp do awansu dla Pompki: 0 z 4 dodatkowych powtórzeń'
         })
-      ).toHaveAttribute('aria-valuenow', '40')
+      ).toHaveAttribute('aria-valuenow', '0')
     })
 
     await step('Tapping the top of the card collapses it', async () => {
@@ -197,7 +221,7 @@ export const DailyQuestList: Story = {
       ).not.toBeInTheDocument()
       await expect(
         canvas.getByRole('progressbar', {
-          name: 'Postęp dla Pompki: 40 z 40'
+          name: 'Postęp do awansu dla Pompki: 0 z 4 dodatkowych powtórzeń'
         })
       ).toBeVisible()
     })

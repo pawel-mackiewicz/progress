@@ -16,7 +16,11 @@ describe('an exercise card during today’s quest', () => {
       completedReps: 5,
       remainingReps: 35,
       progressPercent: 13,
+      progressionThresholdReps: 44,
+      remainingRepsToProgression: 39,
+      progressionPercent: 0,
       isComplete: false,
+      isProgressionReady: false,
       yesterdayReps: 15,
       previousMaxReps: 25,
       createdAt: '2026-08-24T08:00:00.000Z',
@@ -44,6 +48,7 @@ describe('an exercise card during today’s quest', () => {
     expect(card.get('[role="progressbar"]').attributes('aria-valuenow')).toBe(
       '5'
     )
+    expect(card.text()).not.toContain('level up')
   })
 
   it('shows an honest empty history for an athlete starting fresh', () => {
@@ -65,20 +70,71 @@ describe('an exercise card during today’s quest', () => {
     expect(card.emitted('add')).toEqual([[10]])
   })
 
-  it('celebrates a cleared personal goal without relying on color alone', () => {
+  it('reveals a fresh level-up run only after the daily goal is cleared', () => {
     const card = showCard(
       givenProgress({
-        completedReps: 45,
+        completedReps: 40,
         remainingReps: 0,
         progressPercent: 100,
-        isComplete: true
+        progressionThresholdReps: 44,
+        remainingRepsToProgression: 4,
+        progressionPercent: 0,
+        isComplete: true,
+        isProgressionReady: false
       })
     )
 
     expect(card.classes()).toContain('exercise-card--complete')
-    expect(card.text()).toContain('GOAL CLEARED')
-    expect(card.get('[role="progressbar"]').attributes('aria-valuenow')).toBe(
-      '40'
+    expect(card.text()).toContain('4 reps to level up')
+    expect(card.get('[role="progressbar"]').attributes()).toMatchObject({
+      'aria-label': 'Level-up progress for Push-ups: 0 of 4 extra reps',
+      'aria-valuenow': '0',
+      'aria-valuemax': '4'
+    })
+  })
+
+  it('counts down the extra effort on the level-up scale', () => {
+    const card = showCard(
+      givenProgress({
+        completedReps: 42,
+        remainingReps: 0,
+        progressPercent: 100,
+        progressionThresholdReps: 44,
+        remainingRepsToProgression: 2,
+        progressionPercent: 50,
+        isComplete: true,
+        isProgressionReady: false
+      })
     )
+
+    expect(card.text()).toContain('2 reps to level up')
+    expect(card.get('[role="progressbar"]').attributes()).toMatchObject({
+      'aria-label': 'Level-up progress for Push-ups: 2 of 4 extra reps',
+      'aria-valuenow': '2',
+      'aria-valuemax': '4'
+    })
+  })
+
+  it('announces when enough extra effort has made the level-up ready', () => {
+    const card = showCard(
+      givenProgress({
+        completedReps: 50,
+        remainingReps: 0,
+        progressPercent: 100,
+        progressionThresholdReps: 44,
+        remainingRepsToProgression: 0,
+        progressionPercent: 100,
+        isComplete: true,
+        isProgressionReady: true
+      })
+    )
+
+    expect(card.classes()).toContain('exercise-card--progression-ready')
+    expect(card.text()).toContain('LEVEL-UP READY')
+    expect(card.get('[role="progressbar"]').attributes()).toMatchObject({
+      'aria-label': 'Level-up progress for Push-ups: 4 of 4 extra reps',
+      'aria-valuenow': '4',
+      'aria-valuemax': '4'
+    })
   })
 })

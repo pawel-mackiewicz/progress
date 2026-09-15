@@ -194,6 +194,14 @@ test.describe('an athlete keeps a hard-earned streak alive', () => {
       completedReps: 17,
       dailyGoal: 15
     })
+    await whenTheyUndoTheirLastSet(page)
+    await thenTheySeeOneRepRemainingToLevelUp(page, 'Push-ups')
+    await whenTheyAddOneExtraRep(page, 'Push-ups')
+    await thenTheySeeTheirSurplusReps(page, {
+      name: 'Push-ups',
+      completedReps: 17,
+      dailyGoal: 15
+    })
 
     await test.step('When they return the next morning without registering another exercise', async () => {
       await page.clock.setFixedTime(new Date('2026-08-25T08:00:00.000Z'))
@@ -816,20 +824,57 @@ async function whenTheyExceedTheGoalByTwoReps(
   })
 }
 
+async function whenTheyAddOneExtraRep(page: Page, exerciseName: string) {
+  await test.step('When they restore the last extra rep', async () => {
+    await page
+      .getByRole('button', { name: `Add 1 rep to ${exerciseName}` })
+      .click()
+  })
+}
+
 async function thenTheySeeTheirSurplusReps(
   page: Page,
   exercise: { name: string; completedReps: number; dailyGoal: number }
 ) {
-  await test.step('Then the surplus reps remain visible beyond the completed goal', async () => {
+  await test.step('Then the surplus makes the next level ready', async () => {
     const progress = progressFor(page, exercise.name)
+    const progressionThreshold =
+      exercise.dailyGoal < 20
+        ? exercise.dailyGoal + 2
+        : Math.ceil(exercise.dailyGoal * 1.1)
+    const extraRepsThreshold = progressionThreshold - exercise.dailyGoal
+    const extraReps = Math.min(
+      exercise.completedReps - exercise.dailyGoal,
+      extraRepsThreshold
+    )
     await expect(progress).toHaveAccessibleName(
-      `Progress for ${exercise.name}: ${exercise.completedReps} of ${exercise.dailyGoal}`
+      `Level-up progress for ${exercise.name}: ${extraReps} of ${extraRepsThreshold} extra reps`
     )
-    // ARIA progress values cannot exceed their maximum, so the label carries the full 17/15 result while the value stays capped at 15.
+    await expect(progress).toHaveAttribute('aria-valuenow', String(extraReps))
     await expect(progress).toHaveAttribute(
-      'aria-valuenow',
-      String(exercise.dailyGoal)
+      'aria-valuemax',
+      String(extraRepsThreshold)
     )
+    await expect(
+      page.getByText('LEVEL-UP READY', { exact: true })
+    ).toBeVisible()
+  })
+}
+
+async function thenTheySeeOneRepRemainingToLevelUp(
+  page: Page,
+  exerciseName: string
+) {
+  await test.step('Then undo returns the level-up run to one remaining rep', async () => {
+    const progress = progressFor(page, exerciseName)
+    await expect(progress).toHaveAccessibleName(
+      `Level-up progress for ${exerciseName}: 1 of 2 extra reps`
+    )
+    await expect(progress).toHaveAttribute('aria-valuenow', '1')
+    await expect(
+      page.getByText('1 rep to level up', { exact: true })
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Undo' })).not.toBeVisible()
   })
 }
 
@@ -870,6 +915,25 @@ async function thenTheExerciseHasProgress(
 ) {
   await test.step(`Then ${exercise.name} keeps ${exercise.completedReps} of ${exercise.dailyGoal} reps`, async () => {
     const progress = progressFor(page, exercise.name)
+
+    if (exercise.completedReps >= exercise.dailyGoal) {
+      const progressionThreshold =
+        exercise.dailyGoal < 20
+          ? exercise.dailyGoal + 2
+          : Math.ceil(exercise.dailyGoal * 1.1)
+      const extraReps = exercise.completedReps - exercise.dailyGoal
+      const extraRepsThreshold = progressionThreshold - exercise.dailyGoal
+      await expect(progress).toHaveAccessibleName(
+        `Level-up progress for ${exercise.name}: ${extraReps} of ${extraRepsThreshold} extra reps`
+      )
+      await expect(progress).toHaveAttribute('aria-valuenow', String(extraReps))
+      await expect(progress).toHaveAttribute(
+        'aria-valuemax',
+        String(extraRepsThreshold)
+      )
+      return
+    }
+
     await expect(progress).toHaveAccessibleName(
       `Progress for ${exercise.name}: ${exercise.completedReps} of ${exercise.dailyGoal}`
     )
@@ -926,9 +990,15 @@ async function thenTheySeeThatTheExerciseIsCompleteWhileTheDayStillNeedsWork(
     ).toBeVisible()
     await expect(progressFor(page, exerciseName)).toHaveAttribute(
       'aria-valuenow',
-      '15'
+      '0'
     )
-    await expect(page.getByText('GOAL CLEARED', { exact: true })).toBeVisible()
+    await expect(progressFor(page, exerciseName)).toHaveAttribute(
+      'aria-valuemax',
+      '2'
+    )
+    await expect(
+      page.getByText('2 reps to level up', { exact: true })
+    ).toBeVisible()
     await expect(page.getByText('Start your streak today')).toBeVisible()
     await expect(
       page
@@ -948,9 +1018,15 @@ async function thenTheySeeThatTodaysGoalIsComplete(
     ).toBeVisible()
     await expect(progressFor(page, exerciseName)).toHaveAttribute(
       'aria-valuenow',
-      '15'
+      '0'
     )
-    await expect(page.getByText('GOAL CLEARED', { exact: true })).toBeVisible()
+    await expect(progressFor(page, exerciseName)).toHaveAttribute(
+      'aria-valuemax',
+      '2'
+    )
+    await expect(
+      page.getByText('2 reps to level up', { exact: true })
+    ).toBeVisible()
     await expect(page.getByText('Start your streak today')).toBeVisible()
     await expect(page.getByText('0 shields', { exact: true })).toBeVisible()
     await expect(
@@ -986,10 +1062,10 @@ async function thenTheCompletedExerciseMovesBelowTheUnfinishedExercise(
     const progress = progressFor(page, 'Push-ups')
     await expect(progress).toBeVisible()
     await expect(progress).toHaveAccessibleName(
-      'Progress for Push-ups: 15 of 15'
+      'Level-up progress for Push-ups: 0 of 2 extra reps'
     )
-    await expect(progress).toHaveAttribute('aria-valuenow', '15')
-    await expect(progress).toHaveAttribute('aria-valuemax', '15')
+    await expect(progress).toHaveAttribute('aria-valuenow', '0')
+    await expect(progress).toHaveAttribute('aria-valuemax', '2')
   })
 }
 
@@ -1018,6 +1094,12 @@ function exerciseNames(page: Page) {
 
 function progressFor(page: Page, exerciseName: string) {
   return page.getByRole('progressbar', {
-    name: new RegExp(`^Progress for ${exerciseName}:`)
+    name: new RegExp(
+      `^(?:Progress|Level-up progress) for ${escapeRegExp(exerciseName)}:`
+    )
   })
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

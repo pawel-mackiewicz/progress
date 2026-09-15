@@ -66,13 +66,17 @@ export const CollapsedQuest: Story = {
   }
 }
 
-export const CollapsedCompletedQuest: Story = {
+export const CollapsedProgressionAtZero: Story = {
   args: {
     exercise: createDashboardExercise({
       completedReps: 40,
       remainingReps: 0,
       progressPercent: 100,
-      isComplete: true
+      progressionThresholdReps: 44,
+      remainingRepsToProgression: 4,
+      progressionPercent: 0,
+      isComplete: true,
+      isProgressionReady: false
     })
   },
   play: async ({ args, canvasElement, step }) => {
@@ -88,9 +92,12 @@ export const CollapsedCompletedQuest: Story = {
         ).toBeInTheDocument()
         await expect(
           canvas.getByRole('progressbar', {
-            name: 'Postęp dla Pompki: 40 z 40'
+            name: 'Postęp do awansu dla Pompki: 0 z 4 dodatkowych powtórzeń'
           })
-        ).toHaveAttribute('aria-valuenow', '40')
+        ).toHaveAttribute('aria-valuenow', '0')
+        await expect(
+          canvas.queryByText('4 powtórzenia do awansu')
+        ).not.toBeInTheDocument()
       }
     )
 
@@ -102,6 +109,58 @@ export const CollapsedCompletedQuest: Story = {
       )
       await expect(args.onToggle).toHaveBeenCalledOnce()
     })
+  }
+}
+
+export const CollapsedProgressionInProgress: Story = {
+  args: {
+    exercise: createDashboardExercise({
+      completedReps: 42,
+      remainingReps: 0,
+      progressPercent: 100,
+      progressionThresholdReps: 44,
+      remainingRepsToProgression: 2,
+      progressionPercent: 50,
+      isComplete: true,
+      isProgressionReady: false
+    })
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+
+    await expect(
+      canvas.queryByText('2 powtórzenia do awansu')
+    ).not.toBeInTheDocument()
+    await expect(
+      canvas.getByRole('progressbar', {
+        name: 'Postęp do awansu dla Pompki: 2 z 4 dodatkowych powtórzeń'
+      })
+    ).toHaveAttribute('aria-valuenow', '2')
+  }
+}
+
+export const CollapsedProgressionReady: Story = {
+  args: {
+    exercise: createDashboardExercise({
+      completedReps: 50,
+      remainingReps: 0,
+      progressPercent: 100,
+      progressionThresholdReps: 44,
+      remainingRepsToProgression: 0,
+      progressionPercent: 100,
+      isComplete: true,
+      isProgressionReady: true
+    })
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+
+    await expect(canvas.queryByText('AWANS GOTOWY')).not.toBeInTheDocument()
+    await expect(
+      canvas.getByRole('progressbar', {
+        name: 'Postęp do awansu dla Pompki: 4 z 4 dodatkowych powtórzeń'
+      })
+    ).toHaveAttribute('aria-valuenow', '4')
   }
 }
 
@@ -135,10 +194,14 @@ export const ExpandedQuest: Story = {
 export const CompletedQuest: Story = {
   args: {
     exercise: createDashboardExercise({
-      completedReps: 40,
+      completedReps: 42,
       remainingReps: 0,
       progressPercent: 100,
-      isComplete: true
+      progressionThresholdReps: 44,
+      remainingRepsToProgression: 2,
+      progressionPercent: 50,
+      isComplete: true,
+      isProgressionReady: false
     }),
     expanded: true
   },
@@ -151,6 +214,8 @@ export const CompletedQuest: Story = {
     await expect(
       canvas.getByRole('button', { name: 'Zwiń szczegóły: Pompki' })
     ).toBeInTheDocument()
-    await expect(canvas.getByText('CEL ZALICZONY')).toBeInTheDocument()
+    await expect(
+      canvas.getByText('2 powtórzenia do awansu')
+    ).toBeInTheDocument()
   }
 }

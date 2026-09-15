@@ -53,22 +53,79 @@ export const QuestInProgress: Story = {
   }
 }
 
-export const QuestCompleted: Story = {
+export const ProgressionAtZero: Story = {
   args: {
     exercise: createDashboardExercise({
-      completedReps: 45,
+      completedReps: 40,
       remainingReps: 0,
       progressPercent: 100,
-      isComplete: true
+      progressionThresholdReps: 44,
+      remainingRepsToProgression: 4,
+      progressionPercent: 0,
+      isComplete: true,
+      isProgressionReady: false
     })
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
 
-    await expect(canvas.getByText('CEL ZALICZONY')).toBeInTheDocument()
+    await expect(
+      canvas.getByText('4 powtórzenia do awansu')
+    ).toBeInTheDocument()
+    await expect(
+      canvas.getByRole('progressbar', {
+        name: 'Postęp do awansu dla Pompki: 0 z 4 dodatkowych powtórzeń'
+      })
+    ).toHaveAttribute('aria-valuenow', '0')
+  }
+}
+
+export const ProgressionInProgress: Story = {
+  args: {
+    exercise: createDashboardExercise({
+      completedReps: 42,
+      remainingReps: 0,
+      progressPercent: 100,
+      progressionThresholdReps: 44,
+      remainingRepsToProgression: 2,
+      progressionPercent: 50,
+      isComplete: true,
+      isProgressionReady: false
+    })
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+
+    await expect(
+      canvas.getByText('2 powtórzenia do awansu')
+    ).toBeInTheDocument()
     await expect(canvas.getByRole('progressbar')).toHaveAttribute(
       'aria-valuenow',
-      '40'
+      '2'
+    )
+  }
+}
+
+export const ProgressionReady: Story = {
+  args: {
+    exercise: createDashboardExercise({
+      completedReps: 50,
+      remainingReps: 0,
+      progressPercent: 100,
+      progressionThresholdReps: 44,
+      remainingRepsToProgression: 0,
+      progressionPercent: 100,
+      isComplete: true,
+      isProgressionReady: true
+    })
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+
+    await expect(canvas.getByText('AWANS GOTOWY')).toBeInTheDocument()
+    await expect(canvas.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '4'
     )
   }
 }

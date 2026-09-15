@@ -224,9 +224,12 @@ async function undoLastReps() {
 
   try {
     await useCases.undoRep.handle({ repLogId })
-    showCelebration.value = false
-    clearTimeout(celebrationTimer)
     await loadSnapshot()
+
+    if (snapshot.value && !snapshot.value.isDayComplete) {
+      showCelebration.value = false
+      clearTimeout(celebrationTimer)
+    }
   } catch {
     actionError.value = true
   }

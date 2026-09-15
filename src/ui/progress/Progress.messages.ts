@@ -33,6 +33,11 @@ export const PROGRESS_MESSAGES = {
       yesterday: 'Wczoraj: {count}',
       previousMax: 'Poprzedni maks.: {count}',
       progress: 'Postęp dla {name}: {current} z {goal}',
+      progressionRemaining:
+        '{count} powtórzeń do awansu | {count} powtórzenie do awansu | {count} powtórzenia do awansu | {count} powtórzeń do awansu',
+      progressionReady: 'AWANS GOTOWY',
+      progressionProgress:
+        'Postęp do awansu dla {name}: {current} z {goal} dodatkowych powtórzeń',
       addReps:
         'Dodaj {count} powtórzenie do {name} | Dodaj {count} powtórzeń do {name}',
       edit: 'Edytuj {name}'
@@ -116,6 +121,11 @@ export const PROGRESS_MESSAGES = {
       yesterday: 'Yesterday: {count}',
       previousMax: 'Previous max: {count}',
       progress: 'Progress for {name}: {current} of {goal}',
+      progressionRemaining:
+        '{count} rep to level up | {count} reps to level up',
+      progressionReady: 'LEVEL-UP READY',
+      progressionProgress:
+        'Level-up progress for {name}: {current} of {goal} extra reps',
       addReps: 'Add {count} rep to {name} | Add {count} reps to {name}',
       edit: 'Edit {name}'
     },

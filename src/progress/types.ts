@@ -26,7 +26,11 @@ export type DashboardExercise = Exercise & {
   completedReps: number
   remainingReps: number
   progressPercent: number
+  progressionThresholdReps: number
+  remainingRepsToProgression: number
+  progressionPercent: number
   isComplete: boolean
+  isProgressionReady: boolean
   yesterdayReps: number
   previousMaxReps: number
 }

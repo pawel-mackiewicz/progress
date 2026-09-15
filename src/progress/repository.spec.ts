@@ -12,7 +12,10 @@ import { RestoreExerciseUseCase } from '@/progress/write/exercises/application/R
 import { UndoRepUseCase } from '@/progress/write/exercises/application/UndoRepUseCase'
 import { UpdateExerciseUseCase } from '@/progress/write/exercises/application/UpdateExerciseUseCase'
 import { DuplicateExerciseNameError } from '@/progress/write/exercises/domain/Exercise'
-import { TrainingDayNotOpenForTodayError } from '@/progress/write/exercises/domain/TrainingDay'
+import {
+  TrainingDay,
+  TrainingDayNotOpenForTodayError
+} from '@/progress/write/exercises/domain/TrainingDay'
 import { TrainingDayProgressionService } from '@/progress/write/exercises/domain/TrainingDayProgressionService'
 import { DexieDayOutcomeRepo } from '@/progress/write/exercises/infra/db/DexieDayOutcomeRepo'
 import { DexieExerciseRepo } from '@/progress/write/exercises/infra/db/DexieExerciseRepo'
@@ -106,6 +109,7 @@ describe('a training day saved on the athlete’s device', () => {
   })
 
   afterEach(async () => {
+    vi.restoreAllMocks()
     await database.delete()
   })
 
@@ -351,6 +355,57 @@ describe('a training day saved on the athlete’s device', () => {
       completedReps: 15,
       dailyGoal: 40,
       isComplete: false
+    })
+  })
+
+  it('restores today once and calculates every exercise progress in one batch read', async () => {
+    await givenAnExercise('Push-ups', 40)
+    await givenAnExercise('Squats', 30)
+    const restoreTrainingDay = vi.spyOn(TrainingDay, 'restore')
+    const readExercisesProgress = vi.spyOn(
+      TrainingDay.prototype,
+      'getExercisesProgress'
+    )
+
+    const dashboard = await readDashboard()
+
+    expect(dashboard.exercises).toHaveLength(2)
+    expect(restoreTrainingDay).toHaveBeenCalledOnce()
+    expect(readExercisesProgress).toHaveBeenCalledOnce()
+  })
+
+  it('reveals zero, partial, and ready level-up progress from persisted reps', async () => {
+    const pushUps = await givenAnExercise('Push-ups', 40)
+    await whenTheAthleteAdds(pushUps.id, 10)
+    await whenTheAthleteAdds(pushUps.id, 10)
+    await whenTheAthleteAdds(pushUps.id, 10)
+    await whenTheAthleteAdds(pushUps.id, 10)
+
+    expect((await readDashboard()).exercises[0]).toMatchObject({
+      completedReps: 40,
+      progressionThresholdReps: 44,
+      remainingRepsToProgression: 4,
+      progressionPercent: 0,
+      isComplete: true,
+      isProgressionReady: false
+    })
+
+    await whenTheAthleteAdds(pushUps.id, 1)
+
+    expect((await readDashboard()).exercises[0]).toMatchObject({
+      completedReps: 41,
+      remainingRepsToProgression: 3,
+      progressionPercent: 25,
+      isProgressionReady: false
+    })
+
+    await whenTheAthleteAdds(pushUps.id, 5)
+
+    expect((await readDashboard()).exercises[0]).toMatchObject({
+      completedReps: 46,
+      remainingRepsToProgression: 0,
+      progressionPercent: 100,
+      isProgressionReady: true
     })
   })
 

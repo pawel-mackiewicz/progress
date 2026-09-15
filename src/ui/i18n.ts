@@ -10,6 +10,33 @@ export type AppLocale = (typeof APP_LOCALES)[number]
 type LocaleStorage = Pick<Storage, 'getItem' | 'setItem'>
 type LocaleNavigator = Pick<Navigator, 'language'>
 
+function polishPluralRule(choice: number, choicesLength: number) {
+  if (choicesLength < 4) {
+    return choice === 1 ? 0 : 1
+  }
+
+  const lastDigit = choice % 10
+  const lastTwoDigits = choice % 100
+
+  if (choice === 0) {
+    return 0
+  }
+
+  if (choice === 1) {
+    return 1
+  }
+
+  if (
+    lastDigit >= 2 &&
+    lastDigit <= 4 &&
+    (lastTwoDigits < 12 || lastTwoDigits > 14)
+  ) {
+    return 2
+  }
+
+  return 3
+}
+
 export function normalizeAppLocale(
   value: string | null | undefined
 ): AppLocale | null {
@@ -72,6 +99,7 @@ export function createAppI18n(locale = resolveInitialLocale()) {
     legacy: false,
     locale,
     fallbackLocale: APP_FALLBACK_LOCALE,
+    pluralRules: { pl: polishPluralRule },
     messages: {}
   })
 }

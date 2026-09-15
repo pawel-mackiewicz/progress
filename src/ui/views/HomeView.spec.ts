@@ -64,7 +64,11 @@ describe('today’s arcade training dashboard', () => {
       completedReps: 5,
       remainingReps: 5,
       progressPercent: 50,
+      progressionThresholdReps: 12,
+      remainingRepsToProgression: 7,
+      progressionPercent: 0,
       isComplete: false,
+      isProgressionReady: false,
       yesterdayReps: 5,
       previousMaxReps: 15,
       createdAt: '2026-08-24T08:00:00.000Z',
@@ -320,7 +324,10 @@ describe('today’s arcade training dashboard', () => {
       completedReps: 10,
       remainingReps: 0,
       progressPercent: 100,
-      isComplete: true
+      remainingRepsToProgression: 2,
+      progressionPercent: 0,
+      isComplete: true,
+      isProgressionReady: false
     }
     const updatedDay = snapshot({
       exercises: [squats, completedPushUps]
@@ -418,7 +425,11 @@ describe('today’s arcade training dashboard', () => {
             completedReps: 10,
             remainingReps: 0,
             progressPercent: 100,
-            isComplete: true
+            progressionThresholdReps: 12,
+            remainingRepsToProgression: 2,
+            progressionPercent: 0,
+            isComplete: true,
+            isProgressionReady: false
           })
         ]
       })
@@ -529,7 +540,11 @@ describe('today’s arcade training dashboard', () => {
           completedReps: 5,
           remainingReps: 5,
           progressPercent: 50,
+          progressionThresholdReps: 12,
+          remainingRepsToProgression: 7,
+          progressionPercent: 0,
           isComplete: false,
+          isProgressionReady: false,
           yesterdayReps: 5,
           previousMaxReps: 15,
           createdAt: '2026-08-24T08:00:00.000Z',
@@ -545,7 +560,10 @@ describe('today’s arcade training dashboard', () => {
           completedReps: 10,
           remainingReps: 0,
           progressPercent: 100,
-          isComplete: true
+          remainingRepsToProgression: 2,
+          progressionPercent: 0,
+          isComplete: true,
+          isProgressionReady: false
         }
       ],
       dayOutcomes: [{ day: today, result: 'COMPLETED' }],
@@ -554,6 +572,7 @@ describe('today’s arcade training dashboard', () => {
     vi.mocked(queries.getDashboard)
       .mockResolvedValueOnce(activeDay)
       .mockResolvedValueOnce(clearedDay)
+      .mockResolvedValueOnce(activeDay)
     vi.mocked(useCases.addRep.handle).mockResolvedValue({
       repLogId: 'winning-set',
       dailyGoal: 10,
@@ -577,6 +596,7 @@ describe('today’s arcade training dashboard', () => {
       amount: 5
     })
     expect(dashboard.text()).toContain('Quest complete!')
+    expect(dashboard.text()).toContain('2 reps to level up')
     expect(dashboard.text()).toContain('Start your streak today')
     expect(
       dashboard.find('[data-testid="exercise-card-push-ups"]').exists()
@@ -584,6 +604,18 @@ describe('today’s arcade training dashboard', () => {
     expect(dashboard.get(`[data-day="${today}"]`).classes()).toContain(
       'completion-calendar__day--complete'
     )
+
+    await dashboard.get('.home-snackbar button').trigger('click')
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+
+    expect(dashboard.text()).not.toContain('Quest complete!')
+    expect(dashboard.text()).toContain('5 to go')
+    expect(dashboard.get(`[data-day="${today}"]`).classes()).not.toContain(
+      'completion-calendar__day--complete'
+    )
+    expect(queries.getDashboard).toHaveBeenCalledTimes(3)
   })
 
   it('shows a perfect-day reward carried back from exercise maintenance once', async () => {
@@ -606,7 +638,11 @@ describe('today’s arcade training dashboard', () => {
           completedReps: 5,
           remainingReps: 15,
           progressPercent: 25,
+          progressionThresholdReps: 22,
+          remainingRepsToProgression: 17,
+          progressionPercent: 0,
           isComplete: false,
+          isProgressionReady: false,
           yesterdayReps: 5,
           previousMaxReps: 10,
           createdAt: '2026-08-24T08:00:00.000Z',
@@ -639,5 +675,198 @@ describe('today’s arcade training dashboard', () => {
     expect(useCases.undoRep.handle).toHaveBeenCalledWith({
       repLogId: 'mistaken-set'
     })
+    expect(queries.getDashboard).toHaveBeenCalledTimes(3)
+  })
+
+  it('reloads authoritative level-up progress after add and undo', async () => {
+    const progressionAtZero = snapshot({
+      exercises: [
+        exercise({
+          completedReps: 10,
+          remainingReps: 0,
+          progressPercent: 100,
+          remainingRepsToProgression: 2,
+          progressionPercent: 0,
+          isComplete: true
+        })
+      ],
+      dayOutcomes: [{ day: today, result: 'COMPLETED' }],
+      isDayComplete: true
+    })
+    const partialProgression = snapshot({
+      ...progressionAtZero,
+      exercises: [
+        exercise({
+          completedReps: 11,
+          remainingReps: 0,
+          progressPercent: 100,
+          remainingRepsToProgression: 1,
+          progressionPercent: 50,
+          isComplete: true
+        })
+      ]
+    })
+    vi.mocked(queries.getDashboard)
+      .mockResolvedValueOnce(progressionAtZero)
+      .mockResolvedValueOnce(partialProgression)
+      .mockResolvedValueOnce(progressionAtZero)
+    vi.mocked(useCases.addRep.handle).mockResolvedValue({
+      repLogId: 'extra-rep',
+      dailyGoal: 10,
+      completedReps: 999,
+      isCompleted: true,
+      didCompleteDay: false
+    })
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    await dashboard
+      .get('[data-testid="exercise-toggle-push-ups"]')
+      .trigger('click')
+    await dashboard
+      .get('button[aria-label="Add 1 rep to Push-ups"]')
+      .trigger('click')
+    await flushPromises()
+
+    expect(dashboard.text()).toContain('1 rep to level up')
+    expect(dashboard.get('[role="progressbar"]').attributes()).toMatchObject({
+      'aria-valuenow': '1',
+      'aria-valuemax': '2'
+    })
+
+    await dashboard.get('.home-snackbar button').trigger('click')
+    await flushPromises()
+
+    expect(dashboard.text()).toContain('2 reps to level up')
+    expect(
+      dashboard.get('[role="progressbar"]').attributes('aria-valuenow')
+    ).toBe('0')
+    expect(queries.getDashboard).toHaveBeenCalledTimes(3)
+  })
+
+  it('keeps completion feedback when the post-undo snapshot is still complete', async () => {
+    const activeDay = snapshot({ exercises: [exercise()] })
+    const completeDay = snapshot({
+      exercises: [
+        exercise({
+          completedReps: 10,
+          remainingReps: 0,
+          progressPercent: 100,
+          remainingRepsToProgression: 2,
+          progressionPercent: 0,
+          isComplete: true
+        })
+      ],
+      isDayComplete: true
+    })
+    vi.mocked(queries.getDashboard)
+      .mockResolvedValueOnce(activeDay)
+      .mockResolvedValueOnce(completeDay)
+      .mockResolvedValueOnce(completeDay)
+    vi.mocked(useCases.addRep.handle).mockResolvedValue({
+      repLogId: 'winning-set',
+      dailyGoal: 10,
+      completedReps: 10,
+      isCompleted: true,
+      didCompleteDay: true
+    })
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    await dashboard
+      .get('[data-testid="exercise-toggle-push-ups"]')
+      .trigger('click')
+    await dashboard
+      .get('button[aria-label="Add 5 reps to Push-ups"]')
+      .trigger('click')
+    await flushPromises()
+    await dashboard.get('.home-snackbar button').trigger('click')
+    await flushPromises()
+
+    expect(dashboard.text()).toContain('Quest complete!')
+  })
+
+  it('keeps the displayed snapshot when adding reps fails', async () => {
+    vi.mocked(queries.getDashboard).mockResolvedValue(
+      snapshot({ exercises: [exercise()] })
+    )
+    vi.mocked(useCases.addRep.handle).mockRejectedValue(
+      new Error('Storage unavailable')
+    )
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    await dashboard
+      .get('[data-testid="exercise-toggle-push-ups"]')
+      .trigger('click')
+    await dashboard
+      .get('button[aria-label="Add 5 reps to Push-ups"]')
+      .trigger('click')
+    await flushPromises()
+
+    expect(queries.getDashboard).toHaveBeenCalledOnce()
+    expect(dashboard.text()).toContain('5 to go')
+    expect(dashboard.text()).toContain('That change could not be saved')
+  })
+
+  it('keeps the displayed snapshot when undoing reps fails', async () => {
+    const progressionAtZero = snapshot({
+      exercises: [
+        exercise({
+          completedReps: 10,
+          remainingReps: 0,
+          progressPercent: 100,
+          remainingRepsToProgression: 2,
+          progressionPercent: 0,
+          isComplete: true
+        })
+      ],
+      isDayComplete: true
+    })
+    const partialProgression = snapshot({
+      ...progressionAtZero,
+      exercises: [
+        exercise({
+          completedReps: 11,
+          remainingReps: 0,
+          progressPercent: 100,
+          remainingRepsToProgression: 1,
+          progressionPercent: 50,
+          isComplete: true
+        })
+      ]
+    })
+    vi.mocked(queries.getDashboard)
+      .mockResolvedValueOnce(progressionAtZero)
+      .mockResolvedValueOnce(partialProgression)
+    vi.mocked(useCases.addRep.handle).mockResolvedValue({
+      repLogId: 'extra-rep',
+      dailyGoal: 10,
+      completedReps: 11,
+      isCompleted: true,
+      didCompleteDay: false
+    })
+    vi.mocked(useCases.undoRep.handle).mockRejectedValue(
+      new Error('Storage unavailable')
+    )
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    await dashboard
+      .get('[data-testid="exercise-toggle-push-ups"]')
+      .trigger('click')
+    await dashboard
+      .get('button[aria-label="Add 1 rep to Push-ups"]')
+      .trigger('click')
+    await flushPromises()
+    await dashboard.get('.home-snackbar button').trigger('click')
+    await flushPromises()
+
+    expect(queries.getDashboard).toHaveBeenCalledTimes(2)
+    expect(dashboard.text()).toContain('1 rep to level up')
+    expect(
+      dashboard.get('[role="progressbar"]').attributes('aria-valuenow')
+    ).toBe('1')
+    expect(dashboard.text()).toContain('That change could not be saved')
   })
 })
