@@ -31,49 +31,70 @@ const { t } = useI18n({
       'home-exercises__item--expanded': expanded
     }"
   >
-    <button
-      v-if="!expanded"
-      class="home-exercises__toggle"
-      type="button"
-      :aria-controls="`exercise-details-${exercise.id}`"
-      aria-expanded="false"
-      :aria-label="
-        t('home.expandExercise', {
-          name: exercise.name,
-          status: t(
-            exercise.isComplete
-              ? 'home.exerciseComplete'
-              : 'home.exerciseIncomplete'
-          )
-        })
-      "
-      :data-testid="`exercise-toggle-${exercise.id}`"
-      @click="emit('toggle')"
-    >
-      <span
-        class="home-exercises__status-icon"
-        :class="{
-          'home-exercises__status-icon--complete': exercise.isComplete
-        }"
-        :data-testid="`exercise-status-${exercise.id}`"
-        aria-hidden="true"
+    <div v-if="!expanded" class="home-exercises__collapsed">
+      <button
+        class="home-exercises__toggle"
+        type="button"
+        :aria-controls="`exercise-details-${exercise.id}`"
+        aria-expanded="false"
+        :aria-label="
+          t('home.expandExercise', {
+            name: exercise.name,
+            status: t(
+              exercise.isComplete
+                ? 'home.exerciseComplete'
+                : 'home.exerciseIncomplete'
+            )
+          })
+        "
+        :data-testid="`exercise-toggle-${exercise.id}`"
+        @click="emit('toggle')"
       >
-        <CheckCircle2
-          v-if="exercise.isComplete"
-          :size="23"
-          :stroke-width="2.5"
+        <span
+          class="home-exercises__status-icon"
+          :class="{
+            'home-exercises__status-icon--complete': exercise.isComplete
+          }"
+          :data-testid="`exercise-status-${exercise.id}`"
+          aria-hidden="true"
+        >
+          <CheckCircle2
+            v-if="exercise.isComplete"
+            :size="23"
+            :stroke-width="2.5"
+          />
+          <Circle v-else :size="23" :stroke-width="2.2" />
+        </span>
+        <span class="home-exercises__summary">
+          <strong>{{ exercise.name }}</strong>
+        </span>
+        <ChevronDown
+          class="home-exercises__chevron"
+          aria-hidden="true"
+          :size="22"
         />
-        <Circle v-else :size="23" :stroke-width="2.2" />
-      </span>
-      <span class="home-exercises__summary">
-        <strong>{{ exercise.name }}</strong>
-      </span>
-      <ChevronDown
-        class="home-exercises__chevron"
-        aria-hidden="true"
-        :size="22"
-      />
-    </button>
+      </button>
+
+      <div
+        class="home-exercises__progress"
+        role="progressbar"
+        :aria-label="
+          t('card.progress', {
+            name: exercise.name,
+            current: exercise.completedReps,
+            goal: exercise.dailyGoal
+          })
+        "
+        :aria-valuemax="exercise.dailyGoal"
+        :aria-valuenow="Math.min(exercise.completedReps, exercise.dailyGoal)"
+        aria-valuemin="0"
+      >
+        <span
+          class="home-exercises__progress-fill"
+          :style="{ width: `${exercise.progressPercent}%` }"
+        />
+      </div>
+    </div>
 
     <ExerciseCard
       v-else
@@ -93,6 +114,10 @@ const { t } = useI18n({
   gap: 0;
 }
 
+.home-exercises__collapsed {
+  position: relative;
+}
+
 .home-exercises__toggle {
   position: relative;
   display: grid;
@@ -102,7 +127,7 @@ const { t } = useI18n({
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.8rem;
-  padding: 0.7rem 0.9rem;
+  padding: 0.7rem 0.9rem 1.15rem;
   border: 1px solid var(--color-outline);
   border-radius: 1rem;
   color: var(--color-on-surface);
@@ -160,6 +185,33 @@ const { t } = useI18n({
   color: var(--color-secondary);
 }
 
+.home-exercises__progress {
+  position: absolute;
+  right: 3rem;
+  bottom: 0.55rem;
+  left: 3.1rem;
+  height: 0.28rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-surface-container-low);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.04);
+  pointer-events: none;
+}
+
+.home-exercises__progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-primary));
+  box-shadow: 0 0 0.7rem var(--color-primary);
+  transition: width 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.home-exercises__item--complete .home-exercises__progress-fill {
+  background: var(--color-success);
+  box-shadow: 0 0 0.7rem var(--color-success);
+}
+
 .home-exercises__item--expanded :deep(.exercise-card) {
   transform-origin: top;
   animation: exercise-card-open 180ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -173,7 +225,8 @@ const { t } = useI18n({
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-exercises__toggle {
+  .home-exercises__toggle,
+  .home-exercises__progress-fill {
     transition: none;
   }
 

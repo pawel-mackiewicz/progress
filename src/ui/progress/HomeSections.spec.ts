@@ -50,6 +50,16 @@ describe('the home dashboard sections', () => {
     }
   }
 
+  function progressFor(list: ReturnType<typeof mount>, exerciseName: string) {
+    return list
+      .findAll('[role="progressbar"]')
+      .filter((progress) =>
+        progress
+          .attributes('aria-label')
+          ?.startsWith(`Progress for ${exerciseName}:`)
+      )
+  }
+
   it('turns today’s welcome into a completed-day streak', async () => {
     const hero = mount(HomeHero, {
       props: {
@@ -148,6 +158,13 @@ describe('the home dashboard sections', () => {
     })
 
     expect(list.findAll('.exercise-card')).toHaveLength(0)
+    expect(progressFor(list, 'Push-ups')).toHaveLength(1)
+    expect(progressFor(list, 'Push-ups')[0]?.attributes()).toMatchObject({
+      'aria-label': 'Progress for Push-ups: 5 of 10',
+      'aria-valuenow': '5',
+      'aria-valuemax': '10'
+    })
+    expect(progressFor(list, 'Squats')).toHaveLength(1)
 
     await list.get('[data-testid="exercise-toggle-push-ups"]').trigger('click')
 
@@ -160,6 +177,8 @@ describe('the home dashboard sections', () => {
     expect(
       list.find('[data-testid="exercise-collapse-push-ups"]').exists()
     ).toBe(true)
+    expect(progressFor(list, 'Push-ups')).toHaveLength(1)
+    expect(progressFor(list, 'Squats')).toHaveLength(1)
     await list
       .get('button[aria-label="Add 5 reps to Push-ups"]')
       .trigger('click')
@@ -175,6 +194,12 @@ describe('the home dashboard sections', () => {
     expect(list.emitted('add')).toEqual([['push-ups', 'Push-ups', 5]])
     expect(list.emitted('edit')).toEqual([['push-ups']])
     expect(list.emitted('toggle')).toEqual([['push-ups'], ['push-ups']])
+
+    await list.setProps({ expandedExerciseId: null })
+
+    expect(list.findAll('.exercise-card')).toHaveLength(0)
+    expect(progressFor(list, 'Push-ups')).toHaveLength(1)
+    expect(progressFor(list, 'Squats')).toHaveLength(1)
   })
 
   it('keeps the archive hidden until there is a quest to restore', async () => {

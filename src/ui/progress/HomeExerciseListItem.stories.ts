@@ -51,8 +51,12 @@ type Story = StoryObj<typeof meta>
 export const CollapsedQuest: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement)
+    const progress = canvas.getByRole('progressbar', {
+      name: 'Postęp dla Pompki: 15 z 40'
+    })
 
-    await expect(canvas.queryByRole('progressbar')).not.toBeInTheDocument()
+    await expect(progress).toHaveAttribute('aria-valuenow', '15')
+    await expect(progress).toHaveAttribute('aria-valuemax', '40')
     await userEvent.click(
       canvas.getByRole('button', {
         name: 'Rozwiń Pompki. Status: Do wykonania'

@@ -155,6 +155,7 @@ export const DailyQuestList: Story = {
 
     await step('Both quests start as compact rows', async () => {
       await expect(canvas.getAllByRole('listitem')).toHaveLength(2)
+      await expect(canvas.getAllByRole('progressbar')).toHaveLength(2)
       await expect(
         canvas.getByTestId('exercise-toggle-push-ups')
       ).toBeInTheDocument()
@@ -179,10 +180,11 @@ export const DailyQuestList: Story = {
       )
       await expect(args.onAdd).toHaveBeenCalledWith('push-ups', 'Pompki', 5)
       await expect(canvas.getByText('CEL ZALICZONY')).toBeInTheDocument()
-      await expect(canvas.getByRole('progressbar')).toHaveAttribute(
-        'aria-valuenow',
-        '40'
-      )
+      await expect(
+        canvas.getByRole('progressbar', {
+          name: 'Postęp dla Pompki: 40 z 40'
+        })
+      ).toHaveAttribute('aria-valuenow', '40')
     })
 
     await step('Tapping the top of the card collapses it', async () => {
@@ -193,6 +195,11 @@ export const DailyQuestList: Story = {
       await expect(
         canvas.queryByTestId('exercise-card-push-ups')
       ).not.toBeInTheDocument()
+      await expect(
+        canvas.getByRole('progressbar', {
+          name: 'Postęp dla Pompki: 40 z 40'
+        })
+      ).toBeVisible()
     })
 
     await step('Another quest can be opened and closed', async () => {
@@ -200,7 +207,7 @@ export const DailyQuestList: Story = {
       await waitFor(() =>
         expect(canvas.getByTestId('exercise-card-squats')).toBeVisible()
       )
-      await expect(canvas.getAllByRole('progressbar')).toHaveLength(1)
+      await expect(canvas.getAllByRole('progressbar')).toHaveLength(2)
 
       await userEvent.click(canvas.getByTestId('exercise-collapse-squats'))
       await expect(

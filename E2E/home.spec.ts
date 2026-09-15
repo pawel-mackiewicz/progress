@@ -981,8 +981,15 @@ async function whenTheyCollapseTheCompletedExercise(
 async function thenTheCompletedExerciseMovesBelowTheUnfinishedExercise(
   page: Page
 ) {
-  await test.step('Then it moves below the exercise that still needs work', async () => {
+  await test.step('Then it moves below the unfinished exercise while keeping its progress visible', async () => {
     await expect(exerciseNames(page)).toHaveText(['Squats', 'Push-ups'])
+    const progress = progressFor(page, 'Push-ups')
+    await expect(progress).toBeVisible()
+    await expect(progress).toHaveAccessibleName(
+      'Progress for Push-ups: 15 of 15'
+    )
+    await expect(progress).toHaveAttribute('aria-valuenow', '15')
+    await expect(progress).toHaveAttribute('aria-valuemax', '15')
   })
 }
 
