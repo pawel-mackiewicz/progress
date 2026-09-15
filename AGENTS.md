@@ -5,3 +5,4 @@
 - when you write tests, it should be written like a story. Create helpers if necessary.
 - don't ever start dev server on your own.
 - after changing ui/data check if any e2e test should be updated
+- do not add changes and refactor in one step. If refactor is necessary, then propose it after making changes.
