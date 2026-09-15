@@ -66,6 +66,45 @@ export const CollapsedQuest: Story = {
   }
 }
 
+export const CollapsedCompletedQuest: Story = {
+  args: {
+    exercise: createDashboardExercise({
+      completedReps: 40,
+      remainingReps: 0,
+      progressPercent: 100,
+      isComplete: true
+    })
+  },
+  play: async ({ args, canvasElement, step }) => {
+    const canvas = within(canvasElement)
+
+    await step(
+      'The athlete sees a completed quest in its compact state',
+      async () => {
+        await expect(
+          canvas.getByRole('button', {
+            name: 'Rozwiń Pompki. Status: Wykonane'
+          })
+        ).toBeInTheDocument()
+        await expect(
+          canvas.getByRole('progressbar', {
+            name: 'Postęp dla Pompki: 40 z 40'
+          })
+        ).toHaveAttribute('aria-valuenow', '40')
+      }
+    )
+
+    await step('The completed quest can still be expanded', async () => {
+      await userEvent.click(
+        canvas.getByRole('button', {
+          name: 'Rozwiń Pompki. Status: Wykonane'
+        })
+      )
+      await expect(args.onToggle).toHaveBeenCalledOnce()
+    })
+  }
+}
+
 export const ExpandedQuest: Story = {
   args: {
     expanded: true
