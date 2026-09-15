@@ -39,9 +39,110 @@ describe('today’s mutable training plan', () => {
     day = day.recordReps('squats', 10, 'squat-set', now).trainingDay
 
     expect(day.getExerciseProgress('push-ups')).toEqual({
+      exerciseId: 'push-ups',
       dailyGoal: 20,
       completedReps: 10,
-      isCompleted: false
+      progressionThresholdReps: 22,
+      remainingRepsToProgression: 12,
+      isCompleted: false,
+      isProgressionReady: false
+    })
+  })
+
+  it('shows a small-goal athlete the last rep before progression is ready', () => {
+    const pullUps = anExercise('pull-ups', 19)
+    let day = TrainingDay.open('2026-08-24', [pullUps])
+    day = afterRecording(day, pullUps.id, [10, 10])
+
+    expect(day.getExerciseProgress(pullUps.id)).toEqual({
+      exerciseId: pullUps.id,
+      dailyGoal: 19,
+      completedReps: 20,
+      progressionThresholdReps: 21,
+      remainingRepsToProgression: 1,
+      isCompleted: true,
+      isProgressionReady: false
+    })
+
+    day = afterRecording(day, pullUps.id, [1])
+
+    expect(day.getExerciseProgress(pullUps.id)).toMatchObject({
+      remainingRepsToProgression: 0,
+      isProgressionReady: true
+    })
+  })
+
+  it('reports percentage thresholds once in training-plan order', () => {
+    const pushUps = anExercise('push-ups', 20)
+    const squats = anExercise('squats', 25)
+    const plank = anExercise('plank', 50)
+    let day = TrainingDay.open('2026-08-24', [pushUps, squats, plank])
+    day = afterRecording(day, squats.id, [10, 10, 5, 1, 1])
+    day = afterRecording(day, pushUps.id, [10, 10, 1, 1])
+
+    expect(day.getExercisesProgress()).toEqual([
+      {
+        exerciseId: pushUps.id,
+        dailyGoal: 20,
+        completedReps: 22,
+        progressionThresholdReps: 22,
+        remainingRepsToProgression: 0,
+        isCompleted: true,
+        isProgressionReady: true
+      },
+      {
+        exerciseId: squats.id,
+        dailyGoal: 25,
+        completedReps: 27,
+        progressionThresholdReps: 28,
+        remainingRepsToProgression: 1,
+        isCompleted: true,
+        isProgressionReady: false
+      },
+      {
+        exerciseId: plank.id,
+        dailyGoal: 50,
+        completedReps: 0,
+        progressionThresholdReps: 55,
+        remainingRepsToProgression: 55,
+        isCompleted: false,
+        isProgressionReady: false
+      }
+    ])
+  })
+
+  it('clamps progression readiness after a large surplus', () => {
+    const pushUps = anExercise('push-ups', 20)
+    const day = afterRecording(
+      TrainingDay.open('2026-08-24', [pushUps]),
+      pushUps.id,
+      [10, 10, 10, 10]
+    )
+
+    expect(day.getExerciseProgress(pushUps.id)).toMatchObject({
+      completedReps: 40,
+      progressionThresholdReps: 22,
+      remainingRepsToProgression: 0,
+      isProgressionReady: true
+    })
+  })
+
+  it('withdraws readiness when the threshold-reaching set is undone', () => {
+    const pullUps = anExercise('pull-ups', 10)
+    let day = afterRecording(
+      TrainingDay.open('2026-08-24', [pullUps]),
+      pullUps.id,
+      [10, 1, 1]
+    )
+
+    expect(day.getExerciseProgress(pullUps.id).isProgressionReady).toBe(true)
+
+    day = day.undoRepLog('pull-ups-set-2')
+
+    expect(day.getExerciseProgress(pullUps.id)).toMatchObject({
+      completedReps: 11,
+      remainingRepsToProgression: 1,
+      isProgressionReady: false
     })
   })
 
@@ -135,6 +236,8 @@ describe('today’s mutable training plan', () => {
 
     const progressions = day.finalize().recalculateDailyGoals()
 
+    expect(day.getExerciseProgress(pullUps.id).isProgressionReady).toBe(true)
+    expect(day.isComplete).toBe(false)
     expect(progressions).toEqual([])
   })
 

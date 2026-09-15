@@ -18,9 +18,13 @@ export type TrainingDaySnapshot = {
 }
 
 export type ExerciseProgress = {
+  exerciseId: string
   dailyGoal: number
   completedReps: number
+  progressionThresholdReps: number
+  remainingRepsToProgression: number
   isCompleted: boolean
+  isProgressionReady: boolean
 }
 
 export type DailyGoalProgression = {
@@ -124,15 +128,33 @@ export class TrainingDay {
       )
     }
 
-    const completedReps = this.logs
-      .filter((repLog) => repLog.exerciseId === exerciseId)
-      .reduce((total, repLog) => total + repLog.amount, 0)
+    let completedReps = 0
 
-    return {
-      dailyGoal: exercise.dailyGoal,
-      completedReps,
-      isCompleted: completedReps >= exercise.dailyGoal
+    for (const repLog of this.logs) {
+      if (repLog.exerciseId === exerciseId) {
+        completedReps += repLog.amount
+      }
     }
+
+    return this.calculateExerciseProgress(exercise, completedReps)
+  }
+
+  public getExercisesProgress(): ExerciseProgress[] {
+    const completedRepsByExercise = new Map<string, number>()
+
+    for (const repLog of this.logs) {
+      completedRepsByExercise.set(
+        repLog.exerciseId,
+        (completedRepsByExercise.get(repLog.exerciseId) ?? 0) + repLog.amount
+      )
+    }
+
+    return this.exercisePlan.map((exercise) =>
+      this.calculateExerciseProgress(
+        exercise,
+        completedRepsByExercise.get(exercise.exerciseId) ?? 0
+      )
+    )
   }
 
   public addExercise(exercise: Exercise): TrainingDay {
@@ -236,31 +258,25 @@ export class TrainingDay {
       )
     }
 
-    if (!this.isComplete) {
+    const exercisesProgress = this.getExercisesProgress()
+
+    if (
+      exercisesProgress.length === 0 ||
+      exercisesProgress.some((progress) => !progress.isCompleted)
+    ) {
       return []
     }
 
-    return this.exercisePlan.flatMap((exercise) => {
-      const { completedReps } = this.getExerciseProgress(exercise.exerciseId)
-      const usesTwoRepThreshold = exercise.dailyGoal < 20
-      const earnedProgression = usesTwoRepThreshold
-        ? completedReps >= exercise.dailyGoal + 2
-        : completedReps * 10 >= exercise.dailyGoal * 11
-
-      if (!earnedProgression) {
-        return []
-      }
-
-      return [
-        {
-          exerciseId: exercise.exerciseId,
-          previousDailyGoal: exercise.dailyGoal,
-          nextDailyGoal: usesTwoRepThreshold
-            ? exercise.dailyGoal + 1
-            : Math.round((exercise.dailyGoal * 105) / 100)
-        }
-      ]
-    })
+    return exercisesProgress
+      .filter((progress) => progress.isProgressionReady)
+      .map((progress) => ({
+        exerciseId: progress.exerciseId,
+        previousDailyGoal: progress.dailyGoal,
+        nextDailyGoal:
+          progress.dailyGoal < 20
+            ? progress.dailyGoal + 1
+            : Math.round((progress.dailyGoal * 105) / 100)
+      }))
   }
 
   public toSnapshot(): TrainingDaySnapshot {
@@ -276,6 +292,29 @@ export class TrainingDay {
       throw new TrainingDayFinalizedError(
         'A finalized training day cannot be changed.'
       )
+    }
+  }
+
+  private calculateExerciseProgress(
+    exercise: TrainingExerciseSnapshot,
+    completedReps: number
+  ): ExerciseProgress {
+    const progressionThresholdReps =
+      exercise.dailyGoal < 20
+        ? exercise.dailyGoal + 2
+        : Math.ceil((exercise.dailyGoal * 11) / 10)
+
+    return {
+      exerciseId: exercise.exerciseId,
+      dailyGoal: exercise.dailyGoal,
+      completedReps,
+      progressionThresholdReps,
+      remainingRepsToProgression: Math.max(
+        0,
+        progressionThresholdReps - completedReps
+      ),
+      isCompleted: completedReps >= exercise.dailyGoal,
+      isProgressionReady: completedReps >= progressionThresholdReps
     }
   }
 }

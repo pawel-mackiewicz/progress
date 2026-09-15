@@ -170,7 +170,15 @@ describe('an athlete recording a set in today’s training', () => {
     })
     expect(
       (await trainingDayRepo.findLatest())?.getExerciseProgress('push-ups')
-    ).toEqual({ dailyGoal: 40, completedReps: 15, isCompleted: false })
+    ).toEqual({
+      exerciseId: 'push-ups',
+      dailyGoal: 40,
+      completedReps: 15,
+      progressionThresholdReps: 44,
+      remainingRepsToProgression: 29,
+      isCompleted: false,
+      isProgressionReady: false
+    })
     expect(trainingDayRepo.savedTrainingDays).toHaveLength(0)
     expect(unitOfWork.executions).toBe(1)
     expect(trainingDayRepo.additionsInsideTransaction).toEqual([true])

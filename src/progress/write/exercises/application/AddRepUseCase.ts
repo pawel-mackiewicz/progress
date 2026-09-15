@@ -68,9 +68,10 @@ export class AddRepUseCase implements UseCase<AddRepCommand, AddRepResult> {
 
       return {
         repLogId: repLog.id,
-        didCompleteDay:
-          !trainingDay.isComplete && updatedTrainingDay.isComplete,
-        ...progress
+        dailyGoal: progress.dailyGoal,
+        completedReps: progress.completedReps,
+        isCompleted: progress.isCompleted,
+        didCompleteDay: !trainingDay.isComplete && updatedTrainingDay.isComplete
       }
     })
   }
