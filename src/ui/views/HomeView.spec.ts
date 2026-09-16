@@ -544,6 +544,76 @@ describe('today’s arcade training dashboard', () => {
     expect(dashboard.findAll('.exercise-card')).toHaveLength(0)
   })
 
+  it('keeps a newly level-up-ready quest in place until the athlete collapses it', async () => {
+    const pushUps = exercise({
+      completedReps: 11,
+      remainingReps: 0,
+      progressPercent: 100,
+      remainingRepsToProgression: 1,
+      progressionPercent: 50,
+      isComplete: true
+    })
+    const squats = exercise({
+      id: 'squats',
+      name: 'Squats',
+      completedReps: 10,
+      remainingReps: 0,
+      progressPercent: 100,
+      remainingRepsToProgression: 2,
+      progressionPercent: 0,
+      isComplete: true,
+      createdAt: '2026-08-24T09:00:00.000Z',
+      updatedAt: '2026-08-24T09:00:00.000Z'
+    })
+    const levelUpReadyPushUps = {
+      ...pushUps,
+      completedReps: 12,
+      remainingRepsToProgression: 0,
+      progressionPercent: 100,
+      isProgressionReady: true
+    }
+    vi.mocked(queries.getDashboard)
+      .mockResolvedValueOnce(
+        snapshot({ exercises: [pushUps, squats], isDayComplete: true })
+      )
+      .mockResolvedValueOnce(
+        snapshot({
+          exercises: [squats, levelUpReadyPushUps],
+          isDayComplete: true
+        })
+      )
+    vi.mocked(useCases.addRep.handle).mockResolvedValue({
+      repLogId: 'level-up-set',
+      dailyGoal: 10,
+      completedReps: 12,
+      isCompleted: true,
+      didCompleteDay: false
+    })
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    await dashboard
+      .get('[data-testid="exercise-toggle-push-ups"]')
+      .trigger('click')
+    await dashboard
+      .get('button[aria-label="Add 1 rep to Push-ups"]')
+      .trigger('click')
+    await flushPromises()
+
+    expect(exerciseNames(dashboard)).toEqual(['Push-ups', 'Squats'])
+    expect(dashboard.text()).toContain('LEVEL-UP READY')
+    expect(
+      dashboard.find('[data-testid="exercise-card-push-ups"]').exists()
+    ).toBe(true)
+
+    await dashboard
+      .get('[data-testid="exercise-collapse-push-ups"]')
+      .trigger('click')
+
+    expect(exerciseNames(dashboard)).toEqual(['Squats', 'Push-ups'])
+    expect(dashboard.findAll('.exercise-card')).toHaveLength(0)
+  })
+
   it('keeps the perfect-day reward locked while another quest still needs work', async () => {
     const dashboard = await givenTheyCompleteTheFirstOfTwoExercises()
 

@@ -39,6 +39,9 @@ const showCelebration = ref(false)
 const expandedExerciseId = ref<string | null>(null)
 const deferredCompletedExerciseId = ref<string | null>(null)
 const deferredExerciseOrder = ref<string[]>([])
+const deferredExerciseTarget = ref<'completion' | 'progression-ready' | null>(
+  null
+)
 const progressedExercises = ref<ProgressedExerciseForCelebration[]>([])
 const deferProgressionCelebration = ref(false)
 let snackbarTimer: ReturnType<typeof setTimeout> | undefined
@@ -79,6 +82,7 @@ const visibleExercises = computed(() => {
 function clearDeferredExerciseOrder() {
   deferredCompletedExerciseId.value = null
   deferredExerciseOrder.value = []
+  deferredExerciseTarget.value = null
 }
 
 function queueProgressionCelebration(
@@ -136,11 +140,15 @@ async function loadSnapshot() {
       if (
         deferredCompletedExerciseId.value &&
         (expandedExerciseId.value !== deferredCompletedExerciseId.value ||
-          !nextSnapshot.exercises.some(
-            (exercise) =>
-              exercise.id === deferredCompletedExerciseId.value &&
-              exercise.isComplete
-          ))
+          !nextSnapshot.exercises.some((exercise) => {
+            if (exercise.id !== deferredCompletedExerciseId.value) {
+              return false
+            }
+
+            return deferredExerciseTarget.value === 'progression-ready'
+              ? exercise.isProgressionReady
+              : exercise.isComplete
+          }))
       ) {
         clearDeferredExerciseOrder()
       }
@@ -175,9 +183,9 @@ async function addReps(
   amount: RepIncrement
 ) {
   actionError.value = false
-  const exerciseWasIncomplete = !snapshot.value?.exercises.find(
+  const exerciseBeforeAdd = snapshot.value?.exercises.find(
     (exercise) => exercise.id === exerciseId
-  )?.isComplete
+  )
   const exerciseOrder = visibleExercises.value.map((exercise) => exercise.id)
 
   try {
@@ -189,9 +197,20 @@ async function addReps(
     })
     resetSnackbarTimer()
 
-    if (exerciseWasIncomplete && expandedExerciseId.value === exerciseId) {
+    const deferredTarget = !exerciseBeforeAdd?.isComplete
+      ? 'completion'
+      : !exerciseBeforeAdd.isProgressionReady
+        ? 'progression-ready'
+        : null
+
+    if (
+      deferredTarget &&
+      expandedExerciseId.value === exerciseId &&
+      deferredCompletedExerciseId.value !== exerciseId
+    ) {
       deferredCompletedExerciseId.value = exerciseId
       deferredExerciseOrder.value = exerciseOrder
+      deferredExerciseTarget.value = deferredTarget
     }
 
     await loadSnapshot()
@@ -203,7 +222,11 @@ async function addReps(
     if (
       deferredCompletedExerciseId.value === exerciseId &&
       !snapshot.value?.exercises.some(
-        (exercise) => exercise.id === exerciseId && exercise.isComplete
+        (exercise) =>
+          exercise.id === exerciseId &&
+          (deferredExerciseTarget.value === 'progression-ready'
+            ? exercise.isProgressionReady
+            : exercise.isComplete)
       )
     ) {
       clearDeferredExerciseOrder()

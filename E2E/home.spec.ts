@@ -173,6 +173,30 @@ test.describe('an athlete clears one exercise while another still needs work', (
 
     await thenSquatsAreOpenAboveTheCompletedExercise(page)
   })
+
+  test('keeps a level-up-ready exercise in place until they collapse it', async ({
+    page
+  }) => {
+    await givenTheyAreTrainingPushUpsBeforeSquats(page)
+    await whenTheyCompletePushUps(page)
+    await whenTheyCollapseTheCompletedExercise(page, 'Push-ups')
+    await whenTheyExpandTheExercise(page, 'Squats')
+    await whenTheyRecordTenReps(page, 'Squats')
+    await whenTheyRecordTenReps(page, 'Squats')
+    await whenTheyCollapseTheCompletedExercise(page, 'Squats')
+    await whenTheyExpandTheExercise(page, 'Push-ups', 'Completed')
+
+    await whenTheyExceedTheGoalByTwoReps(page, 'Push-ups')
+
+    await thenTheySeeTheirSurplusReps(page, {
+      name: 'Push-ups',
+      completedReps: 17,
+      dailyGoal: 15
+    })
+    await thenTheOpenLevelUpReadyExerciseStaysInPlace(page)
+    await whenTheyCollapseTheCompletedExercise(page, 'Push-ups')
+    await thenTheLevelUpReadyExerciseMovesBelowTheCompletedExercise(page)
+  })
 })
 
 test.describe('an athlete keeps a hard-earned streak alive', () => {
@@ -1075,6 +1099,25 @@ async function thenSquatsAreOpenAboveTheCompletedExercise(page: Page) {
     await expect(
       page.getByRole('button', {
         name: 'Collapse details for Squats'
+      })
+    ).toBeVisible()
+  })
+}
+
+async function thenTheOpenLevelUpReadyExerciseStaysInPlace(page: Page) {
+  await test.step('Then the open level-up-ready exercise stays where they were working', async () => {
+    await expect(exerciseNames(page)).toHaveText(['Push-ups', 'Squats'])
+  })
+}
+
+async function thenTheLevelUpReadyExerciseMovesBelowTheCompletedExercise(
+  page: Page
+) {
+  await test.step('Then it moves below the completed exercise', async () => {
+    await expect(exerciseNames(page)).toHaveText(['Squats', 'Push-ups'])
+    await expect(
+      page.getByRole('button', {
+        name: 'Expand Push-ups. Status: Level-up ready'
       })
     ).toBeVisible()
   })
