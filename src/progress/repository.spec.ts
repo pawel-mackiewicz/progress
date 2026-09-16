@@ -443,6 +443,24 @@ describe('a training day saved on the athlete’s device', () => {
     ])
   })
 
+  it('keeps level-up ready quests below quests that are only cleared', async () => {
+    const pushUps = await givenAnExercise('Push-ups', 10)
+    const squats = await givenAnExercise('Squats', 10)
+    await givenAnExercise('Pull-ups', 10)
+
+    await whenTheAthleteAdds(pushUps.id, 10)
+    await whenTheAthleteAdds(pushUps.id, 1)
+    await whenTheAthleteAdds(pushUps.id, 1)
+    await whenTheAthleteAdds(squats.id, 10)
+    const trainingDay = await readDashboard()
+
+    expect(trainingDay.exercises.map((exercise) => exercise.name)).toEqual([
+      'Pull-ups',
+      'Squats',
+      'Push-ups'
+    ])
+  })
+
   it('takes back an accidental reward when its triggering set is undone', async () => {
     const pushUps = await givenAnExercise('Push-ups', 5)
     const reward = await whenTheAthleteAdds(pushUps.id, 5)

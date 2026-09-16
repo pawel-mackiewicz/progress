@@ -18,7 +18,9 @@ function sortExercises(exercises: Exercise[]) {
 
 function moveCompletedExercisesToBottom(exercises: DashboardExercise[]) {
   return [...exercises].sort(
-    (first, second) => Number(first.isComplete) - Number(second.isComplete)
+    (first, second) =>
+      (first.isProgressionReady ? 2 : Number(first.isComplete)) -
+      (second.isProgressionReady ? 2 : Number(second.isComplete))
   )
 }
 
