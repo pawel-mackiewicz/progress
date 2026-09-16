@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CheckCircle2, ChevronDown, Circle } from '@lucide/vue'
+import { CheckCircle2, ChevronDown, Circle, Flame } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 
 import type { DashboardExercise, RepIncrement } from '@/progress/types'
@@ -42,9 +42,11 @@ const { t } = useI18n({
           t('home.expandExercise', {
             name: exercise.name,
             status: t(
-              exercise.isComplete
-                ? 'home.exerciseComplete'
-                : 'home.exerciseIncomplete'
+              exercise.isProgressionReady
+                ? 'home.exerciseProgressionReady'
+                : exercise.isComplete
+                  ? 'home.exerciseComplete'
+                  : 'home.exerciseIncomplete'
             )
           })
         "
@@ -54,13 +56,21 @@ const { t } = useI18n({
         <span
           class="home-exercises__status-icon"
           :class="{
-            'home-exercises__status-icon--complete': exercise.isComplete
+            'home-exercises__status-icon--complete': exercise.isComplete,
+            'home-exercises__status-icon--progression-ready':
+              exercise.isProgressionReady
           }"
           :data-testid="`exercise-status-${exercise.id}`"
           aria-hidden="true"
         >
+          <Flame
+            v-if="exercise.isProgressionReady"
+            :data-testid="`exercise-level-up-icon-${exercise.id}`"
+            :size="25"
+            :stroke-width="2.5"
+          />
           <CheckCircle2
-            v-if="exercise.isComplete"
+            v-else-if="exercise.isComplete"
             :size="23"
             :stroke-width="2.5"
           />
@@ -192,12 +202,43 @@ const { t } = useI18n({
 }
 
 .home-exercises__status-icon {
+  position: relative;
   display: inline-flex;
+  width: 1.55rem;
+  height: 1.55rem;
+  align-items: center;
+  justify-content: center;
   color: var(--color-primary);
 }
 
 .home-exercises__status-icon--complete {
   color: var(--color-success);
+}
+
+.home-exercises__status-icon--progression-ready {
+  color: var(--color-accent-warm);
+  filter: drop-shadow(
+    0 0 0.4rem rgb(from var(--color-accent-warm) r g b / 0.72)
+  );
+  transform-origin: 50% 85%;
+  animation: level-up-flame 1.35s ease-in-out infinite;
+}
+
+.home-exercises__status-icon--progression-ready::before {
+  position: absolute;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  filter: blur(0.5rem);
+  opacity: 0.38;
+  content: '';
+}
+
+.home-exercises__status-icon--progression-ready svg {
+  position: relative;
+  z-index: 1;
+  fill: rgb(from var(--color-accent-warm) r g b / 0.2);
 }
 
 .home-exercises__summary {
@@ -253,6 +294,15 @@ const { t } = useI18n({
   box-shadow: 0 0 0.7rem rgb(from var(--color-progression) r g b / 0.72);
 }
 
+.home-exercises__item--progression-ready .home-exercises__progress-fill {
+  background: linear-gradient(
+    90deg,
+    var(--color-accent),
+    var(--color-accent-warm)
+  );
+  box-shadow: 0 0 0.8rem rgb(from var(--color-accent-warm) r g b / 0.82);
+}
+
 .home-exercises__item--expanded :deep(.exercise-card) {
   transform-origin: top;
   animation: exercise-card-open 180ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -265,6 +315,17 @@ const { t } = useI18n({
   }
 }
 
+@keyframes level-up-flame {
+  0%,
+  100% {
+    transform: translateY(0) scale(1) rotate(-1deg);
+  }
+
+  45% {
+    transform: translateY(-0.08rem) scale(1.08, 0.96) rotate(2deg);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .home-exercises__toggle,
   .home-exercises__progress-fill {
@@ -272,6 +333,10 @@ const { t } = useI18n({
   }
 
   .home-exercises__item--expanded :deep(.exercise-card) {
+    animation: none;
+  }
+
+  .home-exercises__status-icon--progression-ready {
     animation: none;
   }
 }

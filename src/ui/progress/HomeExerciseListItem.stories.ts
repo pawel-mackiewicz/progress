@@ -152,15 +152,31 @@ export const CollapsedProgressionReady: Story = {
       isProgressionReady: true
     })
   },
-  play: async ({ canvasElement }) => {
+  play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement)
 
-    await expect(canvas.queryByText('AWANS GOTOWY')).not.toBeInTheDocument()
-    await expect(
-      canvas.getByRole('progressbar', {
-        name: 'Postęp do awansu dla Pompki: 4 z 4 dodatkowych powtórzeń'
-      })
-    ).toHaveAttribute('aria-valuenow', '4')
+    await step('The earned level-up has its own fiery status', async () => {
+      await expect(
+        canvas.getByRole('button', {
+          name: 'Rozwiń Pompki. Status: Awans gotowy'
+        })
+      ).toBeInTheDocument()
+      await expect(
+        canvas.getByTestId('exercise-level-up-icon-push-ups')
+      ).toBeInTheDocument()
+      await expect(canvas.queryByText('AWANS GOTOWY')).not.toBeInTheDocument()
+    })
+
+    await step(
+      'The full progression stays visible in the compact row',
+      async () => {
+        await expect(
+          canvas.getByRole('progressbar', {
+            name: 'Postęp do awansu dla Pompki: 4 z 4 dodatkowych powtórzeń'
+          })
+        ).toHaveAttribute('aria-valuenow', '4')
+      }
+    )
   }
 }
 

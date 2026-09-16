@@ -493,6 +493,41 @@ describe('today’s arcade training dashboard', () => {
     expect(dashboard.findAll('.exercise-card')).toHaveLength(0)
   })
 
+  it('marks a compact quest with fire when the next level is ready', async () => {
+    vi.mocked(queries.getDashboard).mockResolvedValue(
+      snapshot({
+        exercises: [
+          exercise({
+            completedReps: 12,
+            remainingReps: 0,
+            progressPercent: 100,
+            remainingRepsToProgression: 0,
+            progressionPercent: 100,
+            isComplete: true,
+            isProgressionReady: true
+          })
+        ]
+      })
+    )
+
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    expect(
+      dashboard
+        .get('[data-testid="exercise-toggle-push-ups"]')
+        .attributes('aria-label')
+    ).toContain('Level-up ready')
+    expect(
+      dashboard.find('[data-testid="exercise-level-up-icon-push-ups"]').exists()
+    ).toBe(true)
+    expect(
+      dashboard
+        .get('[data-testid="exercise-status-push-ups"]')
+        .classes('home-exercises__status-icon--progression-ready')
+    ).toBe(true)
+  })
+
   it('keeps a newly cleared quest in place until the athlete collapses it', async () => {
     const dashboard = await givenTheyCompleteTheFirstOfTwoExercises()
 

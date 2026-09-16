@@ -131,6 +131,9 @@ describe('an exercise card during today’s quest', () => {
 
     expect(card.classes()).toContain('exercise-card--progression-ready')
     expect(card.text()).toContain('LEVEL-UP READY')
+    expect(
+      card.find('[data-testid="exercise-level-up-icon-push-ups"]').exists()
+    ).toBe(true)
     expect(card.get('[role="progressbar"]').attributes()).toMatchObject({
       'aria-label': 'Level-up progress for Push-ups: 4 of 4 extra reps',
       'aria-valuenow': '4',

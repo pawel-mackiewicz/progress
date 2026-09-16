@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, ChevronUp, Pencil, Zap } from '@lucide/vue'
+import { Check, ChevronUp, Flame, Pencil, Zap } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 
 import { REP_INCREMENTS, type DashboardExercise } from '@/progress/types'
@@ -44,8 +44,22 @@ const { t } = useI18n({
         @click="emit('collapse')"
       >
         <span class="exercise-card__name-row">
-          <span v-if="exercise.isComplete" class="exercise-card__check">
-            <Check aria-hidden="true" :size="16" :stroke-width="3" />
+          <span
+            v-if="exercise.isComplete"
+            class="exercise-card__check"
+            :class="{
+              'exercise-card__check--progression-ready':
+                exercise.isProgressionReady
+            }"
+          >
+            <Flame
+              v-if="exercise.isProgressionReady"
+              aria-hidden="true"
+              :data-testid="`exercise-level-up-icon-${exercise.id}`"
+              :size="17"
+              :stroke-width="2.6"
+            />
+            <Check v-else aria-hidden="true" :size="16" :stroke-width="3" />
           </span>
           <span class="exercise-card__name">{{ exercise.name }}</span>
         </span>
@@ -78,8 +92,22 @@ const { t } = useI18n({
 
       <div v-else class="exercise-card__summary">
         <div class="exercise-card__name-row">
-          <span v-if="exercise.isComplete" class="exercise-card__check">
-            <Check aria-hidden="true" :size="16" :stroke-width="3" />
+          <span
+            v-if="exercise.isComplete"
+            class="exercise-card__check"
+            :class="{
+              'exercise-card__check--progression-ready':
+                exercise.isProgressionReady
+            }"
+          >
+            <Flame
+              v-if="exercise.isProgressionReady"
+              aria-hidden="true"
+              :data-testid="`exercise-level-up-icon-${exercise.id}`"
+              :size="17"
+              :stroke-width="2.6"
+            />
+            <Check v-else aria-hidden="true" :size="16" :stroke-width="3" />
           </span>
           <h3 class="exercise-card__name">{{ exercise.name }}</h3>
         </div>
@@ -236,6 +264,18 @@ const { t } = useI18n({
 .exercise-card--complete::before {
   background: var(--color-success);
   box-shadow: 0 0 1.2rem var(--color-success);
+}
+
+.exercise-card--progression-ready::before {
+  background: linear-gradient(
+    180deg,
+    var(--color-accent-warm),
+    var(--color-accent) 55%,
+    var(--color-accent-warm)
+  );
+  box-shadow:
+    0 0 1.2rem rgb(from var(--color-accent-warm) r g b / 0.82),
+    0 0 2rem rgb(from var(--color-accent) r g b / 0.35);
 }
 
 .exercise-card__header,
@@ -396,6 +436,26 @@ const { t } = useI18n({
   animation: goal-pop 300ms ease-out;
 }
 
+.exercise-card__check--progression-ready {
+  color: var(--color-surface);
+  background: linear-gradient(
+    145deg,
+    var(--color-accent-warm),
+    var(--color-accent)
+  );
+  box-shadow:
+    0 0 0.8rem rgb(from var(--color-accent-warm) r g b / 0.72),
+    0 0 1.5rem rgb(from var(--color-accent) r g b / 0.3);
+  transform-origin: 50% 85%;
+  animation:
+    goal-pop 300ms ease-out,
+    level-up-flame 1.35s 300ms ease-in-out infinite;
+}
+
+.exercise-card__check--progression-ready svg {
+  fill: rgb(from var(--color-surface) r g b / 0.2);
+}
+
 .exercise-card__status {
   display: block;
   margin: 0.38rem 0 0;
@@ -416,6 +476,11 @@ const { t } = useI18n({
   box-shadow:
     0 0 1.8rem rgb(from var(--color-progression) r g b / 0.16),
     0 1rem 2.5rem rgb(0 0 0 / 0.26);
+}
+
+.exercise-card--progression-ready .exercise-card__status {
+  color: var(--color-accent-warm);
+  text-shadow: 0 0 0.8rem rgb(from var(--color-accent-warm) r g b / 0.44);
 }
 
 .exercise-card__icon-button {
@@ -506,6 +571,15 @@ const { t } = useI18n({
   box-shadow: 0 0 1rem rgb(from var(--color-progression) r g b / 0.72);
 }
 
+.exercise-card--progression-ready .exercise-card__progress-fill {
+  background: linear-gradient(
+    90deg,
+    var(--color-accent),
+    var(--color-accent-warm)
+  );
+  box-shadow: 0 0 1.1rem rgb(from var(--color-accent-warm) r g b / 0.82);
+}
+
 .exercise-card__actions {
   gap: 0.65rem;
 }
@@ -558,6 +632,24 @@ const { t } = useI18n({
   100% {
     opacity: 1;
     transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes level-up-flame {
+  0%,
+  100% {
+    transform: translateY(0) scale(1) rotate(-1deg);
+  }
+
+  45% {
+    transform: translateY(-0.08rem) scale(1.08, 0.96) rotate(2deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exercise-card__check,
+  .exercise-card__check--progression-ready {
+    animation: none;
   }
 }
 </style>

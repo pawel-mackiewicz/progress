@@ -15,6 +15,7 @@ export const PROGRESS_MESSAGES = {
       addExercise: 'Dodaj ćwiczenie',
       exerciseList: 'Dzisiejsze ćwiczenia',
       exerciseComplete: 'Wykonane',
+      exerciseProgressionReady: 'Awans gotowy',
       exerciseIncomplete: 'Do wykonania',
       expandExercise: 'Rozwiń {name}. Status: {status}',
       loadError:
@@ -103,6 +104,7 @@ export const PROGRESS_MESSAGES = {
       addExercise: 'Add exercise',
       exerciseList: "Today's exercises",
       exerciseComplete: 'Completed',
+      exerciseProgressionReady: 'Level-up ready',
       exerciseIncomplete: 'Not completed',
       expandExercise: 'Expand {name}. Status: {status}',
       loadError:
