@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { ProgressDatabase } from '@/db'
 import type { LocalDayKey } from '@/progress/date'
+import { AlternativeActivityPercentage } from '@/progress/write/exercises/domain/AlternativeActivityPercentage'
 import { Exercise } from '@/progress/write/exercises/domain/Exercise'
 import { RepLog } from '@/progress/write/exercises/domain/RepLog'
 import { TrainingDay } from '@/progress/write/exercises/domain/TrainingDay'
@@ -51,7 +52,8 @@ describe('a training day stored on the athlete’s device', () => {
     expect(restoredDay?.toSnapshot()).toEqual({
       day,
       status: 'OPEN',
-      exercises: [{ exerciseId: 'push-ups', name: 'push-ups', dailyGoal: 20 }]
+      exercises: [{ exerciseId: 'push-ups', name: 'push-ups', dailyGoal: 20 }],
+      alternativeActivityPercentage: 0
     })
     expect(restoredDay?.repLogs.map((repLog) => repLog.toSnapshot())).toEqual([
       {
@@ -127,6 +129,36 @@ describe('a training day stored on the athlete’s device', () => {
     expect(await database.trainingDays.count()).toBe(1)
     expect(await database.trainingDays.get('2026-08-24')).toMatchObject({
       status: 'FINALIZED'
+    })
+  })
+
+  it('restores the alternative activity contribution after the app is reopened', async () => {
+    const day = '2026-08-24'
+    const creditedDay = TrainingDay.open(day, [
+      anExercise('push-ups')
+    ]).setAlternativeActivityPercentage(AlternativeActivityPercentage.from(50))
+    await repository.save(creditedDay)
+    database.close()
+
+    database = new ProgressDatabase(databaseName)
+    repository = new DexieTrainingDayRepo(database)
+
+    expect((await repository.findLatest())?.toSnapshot()).toEqual(
+      creditedDay.toSnapshot()
+    )
+  })
+
+  it('treats a stored day from before alternative credit as zero', async () => {
+    const day = '2026-08-24'
+    await database.trainingDays.add({
+      day,
+      status: 'OPEN',
+      exercises: [{ exerciseId: 'push-ups', name: 'Push-ups', dailyGoal: 20 }]
+    })
+
+    expect((await repository.findLatest())?.toSnapshot()).toMatchObject({
+      day,
+      alternativeActivityPercentage: 0
     })
   })
 

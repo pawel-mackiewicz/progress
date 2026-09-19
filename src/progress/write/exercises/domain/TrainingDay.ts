@@ -1,5 +1,9 @@
 import type { LocalDayKey } from '@/progress/date'
 import type { RepIncrement } from '@/progress/types'
+import {
+  AlternativeActivityPercentage,
+  type AlternativeActivityPercentageValue
+} from '@/progress/write/exercises/domain/AlternativeActivityPercentage'
 import type { Exercise } from '@/progress/write/exercises/domain/Exercise'
 import { RepLog } from '@/progress/write/exercises/domain/RepLog'
 
@@ -15,11 +19,22 @@ export type TrainingDaySnapshot = {
   day: LocalDayKey
   status: TrainingDayStatus
   exercises: TrainingExerciseSnapshot[]
+  alternativeActivityPercentage: AlternativeActivityPercentageValue
+}
+
+export type RestorableTrainingDaySnapshot = Omit<
+  TrainingDaySnapshot,
+  'alternativeActivityPercentage'
+> & {
+  alternativeActivityPercentage?: number
 }
 
 export type ExerciseProgress = {
   exerciseId: string
+  // The original goal remains the source of truth for progression thresholds.
   dailyGoal: number
+  // Alternative activity changes completion only; it never creates reps.
+  effectiveDailyGoal: number
   completedReps: number
   progressionThresholdReps: number
   remainingRepsToProgression: number
@@ -55,7 +70,8 @@ export class TrainingDay {
     public readonly day: LocalDayKey,
     public readonly status: TrainingDayStatus,
     exercisePlan: TrainingExerciseSnapshot[],
-    logs: RepLog[]
+    logs: RepLog[],
+    private readonly alternativeActivity: AlternativeActivityPercentage
   ) {
     this.exercisePlan = exercisePlan.map((exercise) => ({ ...exercise }))
     this.logs = [...logs]
@@ -70,19 +86,24 @@ export class TrainingDay {
       day,
       'OPEN',
       exercises.map(snapshotExercise),
-      repLogs
+      repLogs,
+      AlternativeActivityPercentage.from(0)
     )
   }
 
   public static restore(
-    snapshot: TrainingDaySnapshot,
+    snapshot: RestorableTrainingDaySnapshot,
     repLogs: RepLog[]
   ): TrainingDay {
     return new TrainingDay(
       snapshot.day,
       snapshot.status,
       snapshot.exercises,
-      repLogs
+      repLogs,
+      // Snapshots written before alternative activity credit existed have no value.
+      AlternativeActivityPercentage.from(
+        snapshot.alternativeActivityPercentage ?? 0
+      )
     )
   }
 
@@ -92,6 +113,10 @@ export class TrainingDay {
 
   public get repLogs(): RepLog[] {
     return [...this.logs]
+  }
+
+  public get alternativeActivityPercentage(): AlternativeActivityPercentageValue {
+    return this.alternativeActivity.value
   }
 
   public get isComplete(): boolean {
@@ -108,9 +133,14 @@ export class TrainingDay {
       )
     }
 
-    return this.exercisePlan.every(
-      (exercise) => (totals.get(exercise.exerciseId) ?? 0) >= exercise.dailyGoal
-    )
+    // Credit is applied to each exercise separately
+    return this.exercisePlan.every((exercise) => {
+      const effectiveDailyGoal = this.alternativeActivity.effectiveDailyGoalFor(
+        exercise.dailyGoal
+      )
+
+      return (totals.get(exercise.exerciseId) ?? 0) >= effectiveDailyGoal
+    })
   }
 
   public get hasExercises(): boolean {
@@ -167,7 +197,8 @@ export class TrainingDay {
         ...this.exercisePlan.filter((item) => item.exerciseId !== exercise.id),
         snapshotExercise(exercise)
       ],
-      this.logs
+      this.logs,
+      this.alternativeActivity
     )
   }
 
@@ -186,7 +217,8 @@ export class TrainingDay {
       this.exercisePlan.map((item) =>
         item.exerciseId === exercise.id ? snapshotExercise(exercise) : item
       ),
-      this.logs
+      this.logs,
+      this.alternativeActivity
     )
   }
 
@@ -199,7 +231,27 @@ export class TrainingDay {
       this.exercisePlan.filter(
         (exercise) => exercise.exerciseId !== exerciseId
       ),
-      this.logs
+      this.logs,
+      this.alternativeActivity
+    )
+  }
+
+  public setAlternativeActivityPercentage(
+    percentage: AlternativeActivityPercentage
+  ): TrainingDay {
+    this.ensureOpen()
+
+    // Setting a percentage replaces the previous choice; zero removes credit.
+    if (percentage.value === this.alternativeActivity.value) {
+      return this
+    }
+
+    return new TrainingDay(
+      this.day,
+      this.status,
+      this.exercisePlan,
+      this.logs,
+      percentage
     )
   }
 
@@ -220,10 +272,13 @@ export class TrainingDay {
     const repLog = RepLog.record(exerciseId, this.day, amount, id, now)
 
     return {
-      trainingDay: new TrainingDay(this.day, this.status, this.exercisePlan, [
-        ...this.logs,
-        repLog
-      ]),
+      trainingDay: new TrainingDay(
+        this.day,
+        this.status,
+        this.exercisePlan,
+        [...this.logs, repLog],
+        this.alternativeActivity
+      ),
       repLog
     }
   }
@@ -241,14 +296,21 @@ export class TrainingDay {
       this.day,
       this.status,
       this.exercisePlan,
-      this.logs.filter((repLog) => repLog.id !== repLogId)
+      this.logs.filter((repLog) => repLog.id !== repLogId),
+      this.alternativeActivity
     )
   }
 
   public finalize(): TrainingDay {
     this.ensureOpen()
 
-    return new TrainingDay(this.day, 'FINALIZED', this.exercisePlan, this.logs)
+    return new TrainingDay(
+      this.day,
+      'FINALIZED',
+      this.exercisePlan,
+      this.logs,
+      this.alternativeActivity
+    )
   }
 
   public recalculateDailyGoals(): DailyGoalProgression[] {
@@ -267,6 +329,8 @@ export class TrainingDay {
       return []
     }
 
+    // A credited day may be complete, but progression is still earned only by
+    // exercises whose real reps reached their unchanged progression threshold.
     return exercisesProgress
       .filter((progress) => progress.isProgressionReady)
       .map((progress) => ({
@@ -283,7 +347,8 @@ export class TrainingDay {
     return {
       day: this.day,
       status: this.status,
-      exercises: this.exercises
+      exercises: this.exercises,
+      alternativeActivityPercentage: this.alternativeActivity.value
     }
   }
 
@@ -299,6 +364,10 @@ export class TrainingDay {
     exercise: TrainingExerciseSnapshot,
     completedReps: number
   ): ExerciseProgress {
+    const effectiveDailyGoal = this.alternativeActivity.effectiveDailyGoalFor(
+      exercise.dailyGoal
+    )
+    // Progression deliberately ignores alternative activity credit.
     const progressionThresholdReps =
       exercise.dailyGoal < 20
         ? exercise.dailyGoal + 2
@@ -307,13 +376,14 @@ export class TrainingDay {
     return {
       exerciseId: exercise.exerciseId,
       dailyGoal: exercise.dailyGoal,
+      effectiveDailyGoal,
       completedReps,
       progressionThresholdReps,
       remainingRepsToProgression: Math.max(
         0,
         progressionThresholdReps - completedReps
       ),
-      isCompleted: completedReps >= exercise.dailyGoal,
+      isCompleted: completedReps >= effectiveDailyGoal,
       isProgressionReady: completedReps >= progressionThresholdReps
     }
   }

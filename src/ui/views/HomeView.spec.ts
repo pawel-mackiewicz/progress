@@ -114,7 +114,10 @@ describe('today’s arcade training dashboard', () => {
       archiveExercise: {
         handle: vi.fn().mockResolvedValue({ didCompleteDay: false })
       },
-      restoreExercise: { handle: vi.fn().mockResolvedValue(undefined) }
+      restoreExercise: { handle: vi.fn().mockResolvedValue(undefined) },
+      setAlternativeActivityPercentage: {
+        handle: vi.fn().mockResolvedValue({ didCompleteDay: false })
+      }
     }
     queries = {
       getExercise: vi.fn(),

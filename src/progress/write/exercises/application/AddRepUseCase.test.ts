@@ -173,6 +173,7 @@ describe('an athlete recording a set in today’s training', () => {
     ).toEqual({
       exerciseId: 'push-ups',
       dailyGoal: 40,
+      effectiveDailyGoal: 40,
       completedReps: 15,
       progressionThresholdReps: 44,
       remainingRepsToProgression: 29,

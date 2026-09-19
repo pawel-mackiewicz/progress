@@ -15,6 +15,10 @@ import {
 } from '@/progress/write/exercises/application/PrepareTodayTrainingDayUseCase'
 import { RegisterExerciseUseCase } from '@/progress/write/exercises/application/RegisterExerciseUseCase'
 import { RestoreExerciseUseCase } from '@/progress/write/exercises/application/RestoreExerciseUseCase'
+import {
+  SetAlternativeActivityPercentageUseCase,
+  type SetAlternativeActivityPercentageResult
+} from '@/progress/write/exercises/application/SetAlternativeActivityPercentageUseCase'
 import { UndoRepUseCase } from '@/progress/write/exercises/application/UndoRepUseCase'
 import {
   UpdateExerciseUseCase,
@@ -24,6 +28,7 @@ import type { AddRepCommand } from '@/progress/write/exercises/application/reque
 import type { ArchiveExerciseCommand } from '@/progress/write/exercises/application/requests/ArchiveExerciseCommand'
 import type { RegisterExerciseCommand } from '@/progress/write/exercises/application/requests/RegisterExerciseCommand'
 import type { RestoreExerciseCommand } from '@/progress/write/exercises/application/requests/RestoreExerciseCommand'
+import type { SetAlternativeActivityPercentageCommand } from '@/progress/write/exercises/application/requests/SetAlternativeActivityPercentageCommand'
 import type { UndoRepCommand } from '@/progress/write/exercises/application/requests/UndoRepCommand'
 import type { UpdateExerciseCommand } from '@/progress/write/exercises/application/requests/UpdateExerciseCommand'
 import { TrainingDayProgressionService } from '@/progress/write/exercises/domain/TrainingDayProgressionService'
@@ -47,6 +52,10 @@ export type AppUseCases = {
     ArchiveExerciseResult
   >
   readonly restoreExercise: UseCase<RestoreExerciseCommand>
+  readonly setAlternativeActivityPercentage: UseCase<
+    SetAlternativeActivityPercentageCommand,
+    SetAlternativeActivityPercentageResult
+  >
 }
 
 export type AppServices = {
@@ -110,7 +119,13 @@ export function createAppServices(database: ProgressDatabase): AppServices {
         exerciseRepo,
         trainingDayRepo,
         clock
-      )
+      ),
+      setAlternativeActivityPercentage:
+        new SetAlternativeActivityPercentageUseCase(
+          unitOfWork,
+          trainingDayRepo,
+          clock
+        )
     }
   }
 }

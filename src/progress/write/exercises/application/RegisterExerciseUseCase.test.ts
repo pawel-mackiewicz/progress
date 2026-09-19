@@ -132,7 +132,8 @@ describe('an athlete registering an exercise', () => {
           name: 'Push-ups',
           dailyGoal: 40
         }
-      ]
+      ],
+      alternativeActivityPercentage: 0
     })
   })
 

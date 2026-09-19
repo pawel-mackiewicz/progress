@@ -136,7 +136,8 @@ describe('an athlete maintaining their exercise plan', () => {
           name: 'Slow push-ups',
           dailyGoal: 20
         }
-      ]
+      ],
+      alternativeActivityPercentage: 0
     })
     expect(
       trainingDayRepo.savedTrainingDays[0]?.repLogs.map((repLog) => repLog.id)

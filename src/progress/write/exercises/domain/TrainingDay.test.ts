@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import type { RepIncrement } from '@/progress/types'
+import {
+  AlternativeActivityPercentage,
+  InvalidAlternativeActivityPercentageError
+} from '@/progress/write/exercises/domain/AlternativeActivityPercentage'
 import { Exercise } from '@/progress/write/exercises/domain/Exercise'
 import {
   TrainingDay,
+  TrainingDayFinalizedError,
   TrainingDayNotFinalizedError
 } from '@/progress/write/exercises/domain/TrainingDay'
 
@@ -41,6 +46,7 @@ describe('today’s mutable training plan', () => {
     expect(day.getExerciseProgress('push-ups')).toEqual({
       exerciseId: 'push-ups',
       dailyGoal: 20,
+      effectiveDailyGoal: 20,
       completedReps: 10,
       progressionThresholdReps: 22,
       remainingRepsToProgression: 12,
@@ -57,6 +63,7 @@ describe('today’s mutable training plan', () => {
     expect(day.getExerciseProgress(pullUps.id)).toEqual({
       exerciseId: pullUps.id,
       dailyGoal: 19,
+      effectiveDailyGoal: 19,
       completedReps: 20,
       progressionThresholdReps: 21,
       remainingRepsToProgression: 1,
@@ -84,6 +91,7 @@ describe('today’s mutable training plan', () => {
       {
         exerciseId: pushUps.id,
         dailyGoal: 20,
+        effectiveDailyGoal: 20,
         completedReps: 22,
         progressionThresholdReps: 22,
         remainingRepsToProgression: 0,
@@ -93,6 +101,7 @@ describe('today’s mutable training plan', () => {
       {
         exerciseId: squats.id,
         dailyGoal: 25,
+        effectiveDailyGoal: 25,
         completedReps: 27,
         progressionThresholdReps: 28,
         remainingRepsToProgression: 1,
@@ -102,6 +111,7 @@ describe('today’s mutable training plan', () => {
       {
         exerciseId: plank.id,
         dailyGoal: 50,
+        effectiveDailyGoal: 50,
         completedReps: 0,
         progressionThresholdReps: 55,
         remainingRepsToProgression: 55,
@@ -167,6 +177,129 @@ describe('today’s mutable training plan', () => {
 
     expect(day.isComplete).toBe(false)
     expect(day.repLogs).toHaveLength(0)
+  })
+
+  it('applies the selected contribution to every exercise without pooling reps', () => {
+    const pushUps = anExercise('push-ups', 5)
+    const squats = anExercise('squats', 10)
+    let day = TrainingDay.open('2026-08-24', [pushUps, squats])
+    day = day.setAlternativeActivityPercentage(
+      AlternativeActivityPercentage.from(75)
+    )
+    day = afterRecording(day, pushUps.id, [1])
+    day = afterRecording(day, squats.id, [1, 1])
+
+    expect(day.getExercisesProgress()).toEqual([
+      expect.objectContaining({
+        exerciseId: pushUps.id,
+        dailyGoal: 5,
+        effectiveDailyGoal: 1,
+        completedReps: 1,
+        isCompleted: true
+      }),
+      expect.objectContaining({
+        exerciseId: squats.id,
+        dailyGoal: 10,
+        effectiveDailyGoal: 3,
+        completedReps: 2,
+        isCompleted: false
+      })
+    ])
+    expect(day.isComplete).toBe(false)
+
+    day = afterRecording(day, squats.id, [1])
+
+    expect(day.isComplete).toBe(true)
+  })
+
+  it('lets a full contribution complete a non-empty plan but not an empty one', () => {
+    const contribution = AlternativeActivityPercentage.from(100)
+    const plannedDay = TrainingDay.open('2026-08-24', [
+      anExercise('push-ups', 10)
+    ]).setAlternativeActivityPercentage(contribution)
+    const emptyDay = TrainingDay.open(
+      '2026-08-24',
+      []
+    ).setAlternativeActivityPercentage(contribution)
+
+    expect(plannedDay.isComplete).toBe(true)
+    expect(emptyDay.isComplete).toBe(false)
+  })
+
+  it('reopens when the alternative contribution is removed', () => {
+    const pushUps = anExercise('push-ups', 10)
+    let day = afterRecording(
+      TrainingDay.open('2026-08-24', [pushUps]),
+      pushUps.id,
+      [5]
+    )
+    day = day.setAlternativeActivityPercentage(
+      AlternativeActivityPercentage.from(50)
+    )
+
+    expect(day.isComplete).toBe(true)
+
+    day = day.setAlternativeActivityPercentage(
+      AlternativeActivityPercentage.from(0)
+    )
+
+    expect(day.isComplete).toBe(false)
+  })
+
+  it('preserves the contribution through rep changes and finalization', () => {
+    const pushUps = anExercise('push-ups', 10)
+    let day = TrainingDay.open('2026-08-24', [pushUps])
+    day = day.setAlternativeActivityPercentage(
+      AlternativeActivityPercentage.from(50)
+    )
+    day = afterRecording(day, pushUps.id, [5])
+    day = day.undoRepLog('push-ups-set-0')
+    day = day.finalize()
+
+    expect(day.toSnapshot()).toMatchObject({
+      status: 'FINALIZED',
+      alternativeActivityPercentage: 50
+    })
+  })
+
+  it('restores legacy days without a contribution as zero', () => {
+    const day = TrainingDay.restore(
+      {
+        day: '2026-08-24',
+        status: 'OPEN',
+        exercises: [{ exerciseId: 'push-ups', name: 'push-ups', dailyGoal: 10 }]
+      },
+      []
+    )
+
+    expect(day.alternativeActivityPercentage).toBe(0)
+    expect(day.getExerciseProgress('push-ups').effectiveDailyGoal).toBe(10)
+  })
+
+  it('rejects a stored contribution outside the supported choices', () => {
+    expect(() =>
+      TrainingDay.restore(
+        {
+          day: '2026-08-24',
+          status: 'OPEN',
+          exercises: [],
+          alternativeActivityPercentage: 10
+        },
+        []
+      )
+    ).toThrowError(InvalidAlternativeActivityPercentageError)
+  })
+
+  it('keeps a finalized contribution immutable', () => {
+    const day = TrainingDay.open('2026-08-24', [
+      anExercise('push-ups', 10)
+    ]).finalize()
+
+    expect(() =>
+      day.setAlternativeActivityPercentage(
+        AlternativeActivityPercentage.from(50)
+      )
+    ).toThrowError(TrainingDayFinalizedError)
   })
 
   it('reacts immediately when goals and exercises change', () => {
@@ -239,6 +372,26 @@ describe('today’s mutable training plan', () => {
     expect(day.getExerciseProgress(pullUps.id).isProgressionReady).toBe(true)
     expect(day.isComplete).toBe(false)
     expect(progressions).toEqual([])
+  })
+
+  it('levels up only exercises that reached their real threshold on a credited day', () => {
+    const pushUps = anExercise('push-ups', 10)
+    const squats = anExercise('squats', 10)
+    let day = TrainingDay.open('2026-08-24', [pushUps, squats])
+    day = day.setAlternativeActivityPercentage(
+      AlternativeActivityPercentage.from(50)
+    )
+    day = afterRecording(day, pushUps.id, [10, 1, 1])
+    day = afterRecording(day, squats.id, [5])
+
+    expect(day.isComplete).toBe(true)
+    expect(day.finalize().recalculateDailyGoals()).toEqual([
+      {
+        exerciseId: pushUps.id,
+        previousDailyGoal: 10,
+        nextDailyGoal: 11
+      }
+    ])
   })
 
   it('keeps same goal when the completed exercise has only one surplus rep', () => {

@@ -123,7 +123,14 @@ describe('an athlete preparing today by opening the dashboard', () => {
     expect(unitOfWork.executions).toBe(1)
     expect(
       trainingDayRepo.savedTrainingDays.map((day) => day.toSnapshot())
-    ).toEqual([{ day: today, status: 'OPEN', exercises: [] }])
+    ).toEqual([
+      {
+        day: today,
+        status: 'OPEN',
+        exercises: [],
+        alternativeActivityPercentage: 0
+      }
+    ])
     expect(exerciseRepo.savedExercises).toHaveLength(0)
     expect(dayOutcomeRepo.savedOutcomes).toHaveLength(0)
     expect(playerStatsRepo.savedStats).toHaveLength(0)
@@ -198,14 +205,16 @@ describe('an athlete preparing today by opening the dashboard', () => {
         status: 'FINALIZED',
         exercises: [
           { exerciseId: 'existing-squats', name: 'Squats', dailyGoal: 20 }
-        ]
+        ],
+        alternativeActivityPercentage: 0
       },
       {
         day: today,
         status: 'OPEN',
         exercises: [
           { exerciseId: 'existing-squats', name: 'Squats', dailyGoal: 20 }
-        ]
+        ],
+        alternativeActivityPercentage: 0
       }
     ])
   })
@@ -265,12 +274,14 @@ describe('an athlete preparing today by opening the dashboard', () => {
       {
         day: '2026-08-23',
         status: 'FINALIZED',
-        exercises: [{ exerciseId: squats.id, name: 'Squats', dailyGoal: 20 }]
+        exercises: [{ exerciseId: squats.id, name: 'Squats', dailyGoal: 20 }],
+        alternativeActivityPercentage: 0
       },
       {
         day: today,
         status: 'OPEN',
-        exercises: [{ exerciseId: squats.id, name: 'Squats', dailyGoal: 21 }]
+        exercises: [{ exerciseId: squats.id, name: 'Squats', dailyGoal: 21 }],
+        alternativeActivityPercentage: 0
       }
     ])
   })

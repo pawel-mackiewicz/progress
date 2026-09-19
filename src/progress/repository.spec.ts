@@ -186,7 +186,8 @@ describe('a training day saved on the athlete’s device', () => {
         status: 'FINALIZED',
         exercises: [
           { exerciseId: 'existing-squats', name: 'Squats', dailyGoal: 20 }
-        ]
+        ],
+        alternativeActivityPercentage: 0
       },
       {
         day: today,
@@ -198,7 +199,8 @@ describe('a training day saved on the athlete’s device', () => {
             name: 'Push-ups',
             dailyGoal: 40
           }
-        ]
+        ],
+        alternativeActivityPercentage: 0
       }
     ])
     expect(await database.dayOutcomes.toArray()).toEqual([
@@ -336,7 +338,8 @@ describe('a training day saved on the athlete’s device', () => {
     expect(await database.trainingDays.get(today)).toEqual({
       day: today,
       status: 'OPEN',
-      exercises: []
+      exercises: [],
+      alternativeActivityPercentage: 0
     })
   })
 
