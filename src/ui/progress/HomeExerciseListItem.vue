@@ -94,16 +94,23 @@ const { t } = useI18n({
             ? t('card.progressionProgress', {
                 name: exercise.name,
                 current: Math.min(
-                  exercise.completedReps - exercise.dailyGoal,
+                  Math.max(exercise.completedReps - exercise.dailyGoal, 0),
                   exercise.progressionThresholdReps - exercise.dailyGoal
                 ),
                 goal: exercise.progressionThresholdReps - exercise.dailyGoal
               })
-            : t('card.progress', {
-                name: exercise.name,
-                current: exercise.completedReps,
-                goal: exercise.dailyGoal
-              })
+            : exercise.alternativeActivityProgressPercent > 0
+              ? t('card.progressWithAlternative', {
+                  name: exercise.name,
+                  current: exercise.completedReps,
+                  goal: exercise.effectiveDailyGoal,
+                  percentage: exercise.alternativeActivityProgressPercent
+                })
+              : t('card.progress', {
+                  name: exercise.name,
+                  current: exercise.completedReps,
+                  goal: exercise.dailyGoal
+                })
         "
         :aria-valuemax="
           exercise.isComplete
@@ -113,10 +120,15 @@ const { t } = useI18n({
         :aria-valuenow="
           exercise.isComplete
             ? Math.min(
-                exercise.completedReps - exercise.dailyGoal,
+                Math.max(exercise.completedReps - exercise.dailyGoal, 0),
                 exercise.progressionThresholdReps - exercise.dailyGoal
               )
-            : exercise.completedReps
+            : Math.min(
+                exercise.completedReps +
+                  exercise.dailyGoal -
+                  exercise.effectiveDailyGoal,
+                exercise.dailyGoal
+              )
         "
         aria-valuemin="0"
       >
@@ -128,6 +140,16 @@ const { t } = useI18n({
                 ? exercise.progressionPercent
                 : exercise.progressPercent
             }%`
+          }"
+        />
+        <span
+          v-if="
+            !exercise.isComplete &&
+            exercise.alternativeActivityProgressPercent > 0
+          "
+          class="home-exercises__progress-alternative"
+          :style="{
+            width: `${exercise.alternativeActivityProgressPercent}%`
           }"
         />
       </div>
@@ -272,11 +294,26 @@ const { t } = useI18n({
 }
 
 .home-exercises__progress-fill {
-  display: block;
+  position: absolute;
+  inset: 0 auto 0 0;
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--color-accent), var(--color-primary));
   box-shadow: 0 0 0.7rem var(--color-primary);
+  transition: width 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.home-exercises__progress-alternative {
+  position: absolute;
+  inset: 0 0 0 auto;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    var(--color-accent-warm),
+    var(--color-success)
+  );
+  box-shadow: 0 0 0.7rem rgb(from var(--color-accent-warm) r g b / 0.78);
   transition: width 260ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -328,7 +365,8 @@ const { t } = useI18n({
 
 @media (prefers-reduced-motion: reduce) {
   .home-exercises__toggle,
-  .home-exercises__progress-fill {
+  .home-exercises__progress-fill,
+  .home-exercises__progress-alternative {
     transition: none;
   }
 

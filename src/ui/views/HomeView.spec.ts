@@ -156,6 +156,41 @@ describe('today’s arcade training dashboard', () => {
       )
   }
 
+  async function whenTheyReleaseOtherActivityAt(
+    dashboard: ReturnType<typeof openDashboard>,
+    percentage: 0 | 25 | 50 | 75 | 100
+  ) {
+    const surface = dashboard.get(
+      '[data-testid="alternative-activity-control"]'
+    )
+    vi.spyOn(surface.element, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 400,
+      bottom: 160,
+      left: 0,
+      width: 400,
+      height: 160,
+      toJSON: () => ({})
+    })
+    const clientX = 28 + 344 * (percentage / 100)
+
+    await surface.trigger('pointerdown', {
+      isPrimary: true,
+      button: 0,
+      pointerId: 1,
+      clientX
+    })
+    await surface.trigger('pointerup', {
+      isPrimary: true,
+      button: 0,
+      pointerId: 1,
+      clientX
+    })
+    await flushPromises()
+  }
+
   function givenDayPreparationIsPending() {
     let finish!: (
       day: LocalDayKey,
@@ -983,5 +1018,158 @@ describe('today’s arcade training dashboard', () => {
       dashboard.get('[role="progressbar"]').attributes('aria-valuenow')
     ).toBe('1')
     expect(dashboard.text()).toContain('That change could not be saved')
+  })
+
+  it('lets other movement finish the plan without pretending it added reps', async () => {
+    const repsOnly = snapshot({
+      exercises: [
+        exercise({
+          dailyGoal: 20,
+          effectiveDailyGoal: 20,
+          completedReps: 5,
+          remainingReps: 15,
+          progressPercent: 25,
+          progressionThresholdReps: 22,
+          remainingRepsToProgression: 17
+        })
+      ]
+    })
+    const partlyCounted = snapshot({
+      alternativeActivityPercentage: 50,
+      exercises: [
+        exercise({
+          dailyGoal: 20,
+          effectiveDailyGoal: 10,
+          completedReps: 5,
+          remainingReps: 5,
+          progressPercent: 25,
+          alternativeActivityProgressPercent: 50,
+          progressionThresholdReps: 22,
+          remainingRepsToProgression: 17
+        })
+      ]
+    })
+    const completedWithMovement = snapshot({
+      alternativeActivityPercentage: 75,
+      exercises: [
+        exercise({
+          dailyGoal: 20,
+          effectiveDailyGoal: 5,
+          completedReps: 5,
+          remainingReps: 0,
+          progressPercent: 25,
+          alternativeActivityProgressPercent: 75,
+          progressionThresholdReps: 22,
+          remainingRepsToProgression: 17,
+          isComplete: true
+        })
+      ],
+      dayOutcomes: [{ day: today, result: 'COMPLETED' }],
+      isDayComplete: true
+    })
+    vi.mocked(queries.getDashboard)
+      .mockResolvedValueOnce(repsOnly)
+      .mockResolvedValueOnce(partlyCounted)
+      .mockResolvedValueOnce(completedWithMovement)
+    vi.mocked(useCases.setAlternativeActivityPercentage.handle)
+      .mockResolvedValueOnce({ didCompleteDay: false })
+      .mockResolvedValueOnce({ didCompleteDay: true })
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    await whenTheyReleaseOtherActivityAt(dashboard, 50)
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+
+    expect(
+      useCases.setAlternativeActivityPercentage.handle
+    ).toHaveBeenNthCalledWith(1, { day: today, percentage: 50 })
+    expect(dashboard.text()).toContain('50% of today’s plan')
+    expect(dashboard.get('[role="progressbar"]').attributes()).toMatchObject({
+      'aria-label':
+        'Progress for Push-ups: 5 of 10 required reps, plus 50% of the goal credited by other activity',
+      'aria-valuenow': '15',
+      'aria-valuemax': '20'
+    })
+    expect(
+      dashboard.find('.home-exercises__progress-alternative').exists()
+    ).toBe(true)
+
+    await whenTheyReleaseOtherActivityAt(dashboard, 75)
+
+    expect(
+      useCases.setAlternativeActivityPercentage.handle
+    ).toHaveBeenNthCalledWith(2, { day: today, percentage: 75 })
+    expect(dashboard.text()).toContain('Quest complete!')
+    expect(dashboard.text()).toContain(
+      "Today's plan is complete. Keep the streak alive."
+    )
+    expect(dashboard.get('[role="progressbar"]').attributes()).toMatchObject({
+      'aria-valuenow': '0',
+      'aria-valuemax': '2'
+    })
+    expect(
+      dashboard.find('.home-exercises__progress-alternative').exists()
+    ).toBe(false)
+  })
+
+  it('keeps the activity slider available so a failed save can be retried', async () => {
+    vi.mocked(queries.getDashboard).mockResolvedValue(
+      snapshot({ exercises: [exercise()] })
+    )
+    vi.mocked(
+      useCases.setAlternativeActivityPercentage.handle
+    ).mockRejectedValue(new Error('Storage unavailable'))
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    await whenTheyReleaseOtherActivityAt(dashboard, 100)
+
+    expect(dashboard.get('[role="alert"]').text()).toContain(
+      'That change could not be saved'
+    )
+    expect(
+      dashboard
+        .get('[data-testid="alternative-activity-control"] input[type="range"]')
+        .attributes('disabled')
+    ).toBeUndefined()
+    expect(queries.getDashboard).toHaveBeenCalledOnce()
+  })
+
+  it('removes saved activity credit through the None choice', async () => {
+    const withCredit = snapshot({
+      alternativeActivityPercentage: 50,
+      exercises: [
+        exercise({
+          effectiveDailyGoal: 5,
+          alternativeActivityProgressPercent: 50,
+          remainingReps: 0,
+          isComplete: true
+        })
+      ],
+      isDayComplete: true
+    })
+    const withoutCredit = snapshot({ exercises: [exercise()] })
+    vi.mocked(queries.getDashboard)
+      .mockResolvedValueOnce(withCredit)
+      .mockResolvedValueOnce(withoutCredit)
+    vi.mocked(
+      useCases.setAlternativeActivityPercentage.handle
+    ).mockResolvedValue({ didCompleteDay: false })
+    const dashboard = openDashboard()
+    await flushPromises()
+
+    await whenTheyReleaseOtherActivityAt(dashboard, 0)
+    await vi.advanceTimersByTimeAsync(250)
+    await flushPromises()
+
+    expect(
+      useCases.setAlternativeActivityPercentage.handle
+    ).toHaveBeenCalledWith({ day: today, percentage: 0 })
+    expect(dashboard.text()).toContain('Not set')
+    expect(dashboard.get('[role="progressbar"]').attributes()).toMatchObject({
+      'aria-label': 'Progress for Push-ups: 5 of 10',
+      'aria-valuenow': '5'
+    })
   })
 })

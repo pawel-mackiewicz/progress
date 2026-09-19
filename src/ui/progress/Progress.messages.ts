@@ -34,6 +34,8 @@ export const PROGRESS_MESSAGES = {
       yesterday: 'Wczoraj: {count}',
       previousMax: 'Poprzedni maks.: {count}',
       progress: 'Postęp dla {name}: {current} z {goal}',
+      progressWithAlternative:
+        'Postęp dla {name}: {current} z {goal} wymaganych powtórzeń oraz {percentage}% celu zaliczone inną aktywnością',
       progressionRemaining:
         '{count} powtórzeń do awansu | {count} powtórzenie do awansu | {count} powtórzenia do awansu | {count} powtórzeń do awansu',
       progressionReady: 'AWANS GOTOWY',
@@ -42,6 +44,17 @@ export const PROGRESS_MESSAGES = {
       addReps:
         'Dodaj {count} powtórzenie do {name} | Dodaj {count} powtórzeń do {name}',
       edit: 'Edytuj {name}'
+    },
+    alternativeActivity: {
+      eyebrow: 'INNA AKTYWNOŚĆ',
+      none: 'Nie ustawiono',
+      selectedStatus: '{percentage}% dzisiejszego planu',
+      fullStatus: '100% planu zaliczone',
+      sliderLabel:
+        'Inna aktywność. Obecnie: {status}. Naciśnij, przesuń i puść, aby zapisać.',
+      saving: 'Zapisywanie…',
+      saved: 'Zapisano',
+      error: 'Nie udało się zapisać zmiany. Spróbuj ponownie.'
     },
     calendar: {
       eyebrow: 'ZAPIS SERII',
@@ -54,9 +67,9 @@ export const PROGRESS_MESSAGES = {
       today: 'dzisiaj'
     },
     celebration: {
-      kicker: 'PERFECT DAY',
+      kicker: 'DZIEŃ ZALICZONY',
       title: 'Misja wykonana!',
-      body: 'Wszystkie paski pełne. Seria trwa.'
+      body: 'Dzisiejszy plan zaliczony. Seria trwa.'
     },
     progression: {
       eyebrow: 'AWANS',
@@ -123,6 +136,8 @@ export const PROGRESS_MESSAGES = {
       yesterday: 'Yesterday: {count}',
       previousMax: 'Previous max: {count}',
       progress: 'Progress for {name}: {current} of {goal}',
+      progressWithAlternative:
+        'Progress for {name}: {current} of {goal} required reps, plus {percentage}% of the goal credited by other activity',
       progressionRemaining:
         '{count} rep to level up | {count} reps to level up',
       progressionReady: 'LEVEL-UP READY',
@@ -130,6 +145,17 @@ export const PROGRESS_MESSAGES = {
         'Level-up progress for {name}: {current} of {goal} extra reps',
       addReps: 'Add {count} rep to {name} | Add {count} reps to {name}',
       edit: 'Edit {name}'
+    },
+    alternativeActivity: {
+      eyebrow: 'OTHER ACTIVITY',
+      none: 'Not set',
+      selectedStatus: '{percentage}% of today’s plan',
+      fullStatus: '100% of the plan cleared',
+      sliderLabel:
+        'Other activity. Current setting: {status}. Press, slide, and release to save.',
+      saving: 'Saving…',
+      saved: 'Saved',
+      error: 'That change could not be saved. Try again.'
     },
     calendar: {
       eyebrow: 'STREAK LOG',
@@ -142,9 +168,9 @@ export const PROGRESS_MESSAGES = {
       today: 'today'
     },
     celebration: {
-      kicker: 'PERFECT DAY',
+      kicker: 'DAY CLEARED',
       title: 'Quest complete!',
-      body: 'Every bar is full. Keep the streak alive.'
+      body: "Today's plan is complete. Keep the streak alive."
     },
     progression: {
       eyebrow: 'LVL UP!',

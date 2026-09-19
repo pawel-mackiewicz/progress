@@ -66,6 +66,32 @@ export const CollapsedQuest: Story = {
   }
 }
 
+export const CollapsedRepsAndOtherActivity: Story = {
+  args: {
+    exercise: createDashboardExercise({
+      effectiveDailyGoal: 20,
+      completedReps: 10,
+      remainingReps: 10,
+      progressPercent: 25,
+      alternativeActivityProgressPercent: 50
+    })
+  },
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement)
+
+    await step('The compact bar exposes reps and other activity', async () => {
+      const progress = canvas.getByRole('progressbar', {
+        name: 'Postęp dla Pompki: 10 z 20 wymaganych powtórzeń oraz 50% celu zaliczone inną aktywnością'
+      })
+
+      await expect(progress).toHaveAttribute('aria-valuenow', '30')
+      await expect(
+        progress.querySelector('.home-exercises__progress-alternative')
+      ).toBeInTheDocument()
+    })
+  }
+}
+
 export const CollapsedProgressionAtZero: Story = {
   args: {
     exercise: createDashboardExercise({

@@ -58,6 +58,22 @@ test.describe('a first-time athlete starts tracking daily progress', () => {
   })
 })
 
+test.describe('an athlete counts movement completed outside the app', () => {
+  test('combines honest rep progress with other activity to clear the day', async ({
+    page
+  }) => {
+    await givenTheyHaveCompletedFiveOfTwentyPushUps(page)
+
+    await whenTheyCountHalfOfTodaysPlanAsOtherActivity(page)
+
+    await thenTheDashboardCombinesTheirRepsWithOtherActivity(page)
+
+    await whenOtherMovementCompletesTodaysPlan(page)
+
+    await thenTheDayIsClearedWithoutClaimingExtraReps(page)
+  })
+})
+
 test.describe("an athlete maintains the exercises behind today's plan", () => {
   test('revises a goal without losing the reps already earned today', async ({
     page
@@ -332,6 +348,89 @@ async function givenTheyOpenTheDashboard(page: Page) {
       page.getByRole('heading', { level: 1, name: 'Progress' })
     ).toBeVisible()
   })
+}
+
+async function givenTheyHaveCompletedFiveOfTwentyPushUps(page: Page) {
+  await test.step('Given they have completed five of twenty push-ups', async () => {
+    await givenTheyOpenTheDashboard(page)
+    await whenTheyChooseToAddAnExercise(page)
+    await whenTheyCreateAnExercise(page, {
+      name: 'Push-ups',
+      dailyGoal: 20
+    })
+    await whenTheyExpandTheExercise(page, 'Push-ups')
+    await whenTheyRecordFiveReps(page, 'Push-ups')
+  })
+}
+
+async function whenTheyCountHalfOfTodaysPlanAsOtherActivity(page: Page) {
+  await test.step('When they count half of today’s plan as other activity', () =>
+    whenTheyChooseOtherActivityAt(page, 50))
+}
+
+async function thenTheDashboardCombinesTheirRepsWithOtherActivity(page: Page) {
+  await test.step('Then the dashboard combines their reps with that activity', async () => {
+    await expect(page.getByText('50% of today’s plan')).toBeVisible()
+    await expect(progressFor(page, 'Push-ups')).toHaveAccessibleName(
+      'Progress for Push-ups: 5 of 10 required reps, plus 50% of the goal credited by other activity'
+    )
+    await expect(progressFor(page, 'Push-ups')).toHaveAttribute(
+      'aria-valuenow',
+      '15'
+    )
+    await expect(page.getByText('5 to go', { exact: true })).toBeVisible()
+    const exercise = expandedExerciseFor(page, 'Push-ups')
+    await expect(exercise.getByText('5', { exact: true })).toBeVisible()
+    await expect(exercise.getByText('/ 10', { exact: true })).toBeVisible()
+  })
+}
+
+async function whenOtherMovementCompletesTodaysPlan(page: Page) {
+  await test.step('When enough other movement completes today’s plan', () =>
+    whenTheyChooseOtherActivityAt(page, 75))
+}
+
+async function thenTheDayIsClearedWithoutClaimingExtraReps(page: Page) {
+  await test.step('Then the day is cleared without claiming extra reps', async () => {
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Day cleared!' })
+    ).toBeVisible()
+    await expect(
+      page.getByRole('status').filter({ hasText: 'Quest complete!' })
+    ).toContainText("Today's plan is complete. Keep the streak alive.")
+    const exercise = expandedExerciseFor(page, 'Push-ups')
+    await expect(exercise.getByText('5', { exact: true })).toBeVisible()
+    await expect(exercise.getByText('/ 5', { exact: true })).toBeVisible()
+    await expect(progressFor(page, 'Push-ups')).toHaveAttribute(
+      'aria-valuenow',
+      '0'
+    )
+    await expect(progressFor(page, 'Push-ups')).toHaveAccessibleName(
+      'Level-up progress for Push-ups: 0 of 2 extra reps'
+    )
+  })
+}
+
+async function whenTheyChooseOtherActivityAt(
+  page: Page,
+  percentage: 0 | 25 | 50 | 75 | 100
+) {
+  const slider = page.getByRole('slider', { name: /Other activity/ })
+  const surface = page.getByTestId('alternative-activity-control')
+  const bounds = await surface.boundingBox()
+
+  if (!bounds) {
+    throw new Error('The other activity slider is not visible.')
+  }
+
+  const endpointInset = Math.min(28, bounds.width * 0.08)
+  const trackWidth = bounds.width - endpointInset * 2
+  const x = endpointInset + trackWidth * (percentage / 100)
+  const y = bounds.height / 2
+
+  await surface.click({ position: { x, y } })
+
+  await expect(slider).toHaveValue(String(percentage))
 }
 
 async function thenTheySeeAnInvitationToCreateTheirFirstExercise(page: Page) {
@@ -1140,6 +1239,14 @@ function progressFor(page: Page, exerciseName: string) {
     name: new RegExp(
       `^(?:Progress|Level-up progress) for ${escapeRegExp(exerciseName)}:`
     )
+  })
+}
+
+function expandedExerciseFor(page: Page, exerciseName: string) {
+  return page.getByRole('article').filter({
+    has: page.getByRole('button', {
+      name: `Collapse details for ${exerciseName}`
+    })
   })
 }
 

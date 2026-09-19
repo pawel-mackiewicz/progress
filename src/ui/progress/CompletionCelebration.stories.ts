@@ -30,7 +30,7 @@ export const DayCompleted: Story = {
       ).toBeVisible()
     })
     await expect(announcement).toHaveTextContent(
-      'Wszystkie paski pełne. Seria trwa.'
+      'Dzisiejszy plan zaliczony. Seria trwa.'
     )
   }
 }

@@ -62,6 +62,21 @@ describe('an exercise card during today’s quest', () => {
     expect(card.text()).toContain('Previous max: 0')
   })
 
+  it('shows performed reps against today’s reduced goal after other activity', () => {
+    const card = showCard(
+      givenProgress({
+        effectiveDailyGoal: 20,
+        completedReps: 10,
+        remainingReps: 10,
+        alternativeActivityProgressPercent: 50
+      })
+    )
+
+    expect(card.get('.exercise-card__score').text()).toBe('10')
+    expect(card.get('.exercise-card__goal').text()).toBe('/ 20')
+    expect(card.text()).not.toContain('/ 40')
+  })
+
   it('turns one quick +10 press into a clear rep event', async () => {
     const card = showCard()
 

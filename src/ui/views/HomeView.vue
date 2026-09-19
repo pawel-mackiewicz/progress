@@ -6,8 +6,10 @@ import { useI18n } from 'vue-i18n'
 import { monthRange, toLocalDayKey } from '@/progress/date'
 import type { DashboardSnapshot, RepIncrement } from '@/progress/types'
 import type { ProgressedExerciseForCelebration } from '@/progress/write/exercises/application/PrepareTodayTrainingDayUseCase'
+import type { AlternativeActivityPercentageValue } from '@/progress/write/exercises/domain/AlternativeActivityPercentage'
 import type { PlayerStats } from '@/progress/write/exercises/domain/PlayerStats'
 import { useAppServices } from '@/ui/appServices'
+import AlternativeActivityControl from '@/ui/progress/AlternativeActivityControl.vue'
 import CompletionCalendar from '@/ui/progress/CompletionCalendar.vue'
 import CompletionCelebration from '@/ui/progress/CompletionCelebration.vue'
 import HomeArchivedExercises from '@/ui/progress/HomeArchivedExercises.vue'
@@ -44,6 +46,8 @@ const deferredExerciseTarget = ref<'completion' | 'progression-ready' | null>(
 )
 const progressedExercises = ref<ProgressedExerciseForCelebration[]>([])
 const deferProgressionCelebration = ref(false)
+const alternativeActivitySaving = ref(false)
+const alternativeActivityError = ref(false)
 let snackbarTimer: ReturnType<typeof setTimeout> | undefined
 let celebrationTimer: ReturnType<typeof setTimeout> | undefined
 let midnightTimer: ReturnType<typeof setTimeout> | undefined
@@ -269,6 +273,43 @@ async function restoreExercise(exerciseId: string) {
   }
 }
 
+async function setAlternativeActivityPercentage(
+  percentage: AlternativeActivityPercentageValue
+) {
+  const day = snapshot.value?.day
+
+  if (!day || alternativeActivitySaving.value) {
+    return
+  }
+
+  alternativeActivitySaving.value = true
+  alternativeActivityError.value = false
+  actionError.value = false
+
+  try {
+    const result = await useCases.setAlternativeActivityPercentage.handle({
+      day,
+      percentage
+    })
+    await loadSnapshot()
+
+    if (loadError.value || !snapshot.value) {
+      throw new Error('The dashboard could not be refreshed.')
+    }
+
+    if (result.didCompleteDay) {
+      celebrate()
+    } else if (!snapshot.value.isDayComplete) {
+      showCelebration.value = false
+      clearTimeout(celebrationTimer)
+    }
+  } catch {
+    alternativeActivityError.value = true
+  } finally {
+    alternativeActivitySaving.value = false
+  }
+}
+
 function editExercise(exerciseId: string) {
   router.push(`/exercises/${encodeURIComponent(exerciseId)}/edit`)
 }
@@ -393,6 +434,15 @@ onUnmounted(() => {
       :current-streak="playerStats?.currentStreak ?? 0"
       :date="now"
       :is-day-complete="snapshot?.isDayComplete ?? false"
+    />
+
+    <AlternativeActivityControl
+      v-if="snapshot?.exercises.length"
+      :error="alternativeActivityError"
+      :percentage="snapshot.alternativeActivityPercentage"
+      :saving="alternativeActivitySaving"
+      @activate="alternativeActivityError = false"
+      @select="setAlternativeActivityPercentage"
     />
 
     <p v-if="loadError" class="app-alert" role="alert">

@@ -53,6 +53,45 @@ export const QuestInProgress: Story = {
   }
 }
 
+export const RepsAndOtherActivity: Story = {
+  args: {
+    exercise: createDashboardExercise({
+      effectiveDailyGoal: 20,
+      completedReps: 10,
+      remainingReps: 10,
+      progressPercent: 25,
+      alternativeActivityProgressPercent: 50
+    })
+  },
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement)
+
+    await step(
+      'The card shows reps against the reduced goal and names both kinds of progress',
+      async () => {
+        await expect(
+          canvas.getByText('10', { exact: true })
+        ).toBeInTheDocument()
+        await expect(
+          canvas.getByText('/ 20', { exact: true })
+        ).toBeInTheDocument()
+        await expect(
+          canvas.queryByText('/ 40', { exact: true })
+        ).not.toBeInTheDocument()
+
+        const progress = canvas.getByRole('progressbar', {
+          name: 'Postęp dla Pompki: 10 z 20 wymaganych powtórzeń oraz 50% celu zaliczone inną aktywnością'
+        })
+
+        await expect(progress).toHaveAttribute('aria-valuenow', '30')
+        await expect(
+          progress.querySelector('.exercise-card__progress-alternative')
+        ).toBeInTheDocument()
+      }
+    )
+  }
+}
+
 export const ProgressionAtZero: Story = {
   args: {
     exercise: createDashboardExercise({
