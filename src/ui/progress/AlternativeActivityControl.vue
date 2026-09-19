@@ -322,7 +322,7 @@ onBeforeUnmount(() => clearTimeout(savedTimer))
     var(--color-surface-container-lowest);
   box-shadow: 0 0.7rem 1.8rem rgb(0 0 0 / 0.18);
   cursor: ew-resize;
-  touch-action: pan-y;
+  touch-action: none;
   user-select: none;
   transition:
     min-height 180ms ease,
