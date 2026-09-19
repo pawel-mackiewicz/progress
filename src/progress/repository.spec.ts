@@ -9,8 +9,10 @@ import { ArchiveExerciseUseCase } from '@/progress/write/exercises/application/A
 import { PrepareTodayTrainingDayUseCase } from '@/progress/write/exercises/application/PrepareTodayTrainingDayUseCase'
 import { RegisterExerciseUseCase } from '@/progress/write/exercises/application/RegisterExerciseUseCase'
 import { RestoreExerciseUseCase } from '@/progress/write/exercises/application/RestoreExerciseUseCase'
+import { SetAlternativeActivityPercentageUseCase } from '@/progress/write/exercises/application/SetAlternativeActivityPercentageUseCase'
 import { UndoRepUseCase } from '@/progress/write/exercises/application/UndoRepUseCase'
 import { UpdateExerciseUseCase } from '@/progress/write/exercises/application/UpdateExerciseUseCase'
+import type { AlternativeActivityPercentageValue } from '@/progress/write/exercises/domain/AlternativeActivityPercentage'
 import { DuplicateExerciseNameError } from '@/progress/write/exercises/domain/Exercise'
 import {
   TrainingDay,
@@ -50,6 +52,7 @@ describe('a training day saved on the athlete’s device', () => {
   let updateExercise: UpdateExerciseUseCase
   let archiveExercise: ArchiveExerciseUseCase
   let restoreExercise: RestoreExerciseUseCase
+  let setAlternativeActivityPercentage: SetAlternativeActivityPercentageUseCase
   let idGenerator: StoryIdGenerator
 
   beforeEach(() => {
@@ -105,6 +108,12 @@ describe('a training day saved on the athlete’s device', () => {
       trainingDayRepo,
       clock
     )
+    setAlternativeActivityPercentage =
+      new SetAlternativeActivityPercentageUseCase(
+        unitOfWork,
+        trainingDayRepo,
+        clock
+      )
     queries = new DexieProgressQueries(database)
   })
 
@@ -140,6 +149,15 @@ describe('a training day saved on the athlete’s device', () => {
 
   async function whenTheAthleteAdds(exerciseId: string, amount: RepIncrement) {
     return addRep.handle({ exerciseId, amount })
+  }
+
+  async function whenTheAthleteCreditsAlternativeActivity(
+    percentage: AlternativeActivityPercentageValue
+  ) {
+    return setAlternativeActivityPercentage.handle({
+      day: today,
+      percentage
+    })
   }
 
   async function givenTheAthleteAddedOn(
@@ -375,6 +393,107 @@ describe('a training day saved on the athlete’s device', () => {
     expect(dashboard.exercises).toHaveLength(2)
     expect(restoreTrainingDay).toHaveBeenCalledOnce()
     expect(readExercisesProgress).toHaveBeenCalledOnce()
+  })
+
+  it('keeps alternative activity separate from real reps after the app is reopened', async () => {
+    const pushUps = await givenAnExercise('Push-ups', 10)
+    await givenTheAthleteAddedOn(pushUps.id, 5, '2026-08-23')
+    await whenTheAthleteAdds(pushUps.id, 1)
+    await whenTheAthleteCreditsAlternativeActivity(50)
+
+    database.close()
+    database = new ProgressDatabase(databaseName)
+    queries = new DexieProgressQueries(database)
+    const dashboard = await readDashboard()
+
+    expect(dashboard.alternativeActivityPercentage).toBe(50)
+    expect(dashboard.exercises[0]).toMatchObject({
+      name: 'Push-ups',
+      dailyGoal: 10,
+      effectiveDailyGoal: 5,
+      completedReps: 1,
+      remainingReps: 4,
+      progressPercent: 10,
+      alternativeActivityProgressPercent: 50,
+      progressionThresholdReps: 12,
+      remainingRepsToProgression: 11,
+      progressionPercent: 0,
+      isComplete: false,
+      isProgressionReady: false,
+      yesterdayReps: 5,
+      previousMaxReps: 5
+    })
+  })
+
+  it('shows the effective credited share after rounding a small daily goal', async () => {
+    await givenAnExercise('Push-ups', 5)
+    await whenTheAthleteCreditsAlternativeActivity(75)
+
+    const dashboard = await readDashboard()
+
+    expect(dashboard.exercises[0]).toMatchObject({
+      dailyGoal: 5,
+      effectiveDailyGoal: 1,
+      completedReps: 0,
+      remainingReps: 1,
+      progressPercent: 0,
+      alternativeActivityProgressPercent: 80,
+      isComplete: false
+    })
+  })
+
+  it('completes today with full credit without inventing reps or level progress', async () => {
+    await givenAnExercise('Push-ups', 10)
+    await whenTheAthleteCreditsAlternativeActivity(100)
+
+    const dashboard = await readDashboard()
+
+    expect(dashboard).toMatchObject({
+      alternativeActivityPercentage: 100,
+      isDayComplete: true,
+      dayOutcomes: [{ day: today, result: 'COMPLETED' }]
+    })
+    expect(dashboard.exercises[0]).toMatchObject({
+      effectiveDailyGoal: 0,
+      completedReps: 0,
+      remainingReps: 0,
+      progressPercent: 0,
+      alternativeActivityProgressPercent: 100,
+      progressionThresholdReps: 12,
+      remainingRepsToProgression: 12,
+      progressionPercent: 0,
+      isComplete: true,
+      isProgressionReady: false,
+      yesterdayReps: 0,
+      previousMaxReps: 0
+    })
+  })
+
+  it('reads a training day saved before alternative activity existed as zero credit', async () => {
+    const pushUps = await givenAnExercise('Push-ups', 10)
+    await database.trainingDays.put({
+      day: today,
+      status: 'OPEN',
+      exercises: [
+        {
+          exerciseId: pushUps.id,
+          name: pushUps.name,
+          dailyGoal: pushUps.dailyGoal
+        }
+      ]
+    })
+
+    const dashboard = await readDashboard()
+
+    expect(dashboard.alternativeActivityPercentage).toBe(0)
+    expect(dashboard.exercises[0]).toMatchObject({
+      dailyGoal: 10,
+      effectiveDailyGoal: 10,
+      remainingReps: 10,
+      progressPercent: 0,
+      alternativeActivityProgressPercent: 0,
+      isComplete: false
+    })
   })
 
   it('reveals zero, partial, and ready level-up progress from persisted reps', async () => {

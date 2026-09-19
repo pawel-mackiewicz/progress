@@ -145,19 +145,25 @@ export class DexieProgressQueries implements ProgressQueries {
         )
         const extraRepsThreshold =
           progress.progressionThresholdReps - progress.dailyGoal
+        const effectiveDailyGoalPercent = Math.min(
+          Math.round((progress.effectiveDailyGoal / progress.dailyGoal) * 100),
+          100
+        )
 
         return {
           ...exercise,
           dailyGoal: progress.dailyGoal,
+          effectiveDailyGoal: progress.effectiveDailyGoal,
           completedReps: progress.completedReps,
           remainingReps: Math.max(
-            progress.dailyGoal - progress.completedReps,
+            progress.effectiveDailyGoal - progress.completedReps,
             0
           ),
           progressPercent: Math.min(
             Math.round((progress.completedReps / progress.dailyGoal) * 100),
             100
           ),
+          alternativeActivityProgressPercent: 100 - effectiveDailyGoalPercent,
           progressionThresholdReps: progress.progressionThresholdReps,
           remainingRepsToProgression: progress.remainingRepsToProgression,
           progressionPercent: Math.min(
@@ -173,6 +179,7 @@ export class DexieProgressQueries implements ProgressQueries {
     )
     return {
       day,
+      alternativeActivityPercentage: trainingDay.alternativeActivityPercentage,
       exercises,
       archivedExercises: allExercises
         .filter((exercise) => exercise.archivedAt)
