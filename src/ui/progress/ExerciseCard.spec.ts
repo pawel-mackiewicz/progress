@@ -132,6 +132,34 @@ describe('an exercise card during today’s quest', () => {
     })
   })
 
+  it('starts the level-up bar at the finish reduced by other activity', () => {
+    const card = showCard(
+      givenProgress({
+        dailyGoal: 20,
+        effectiveDailyGoal: 10,
+        completedReps: 15,
+        remainingReps: 0,
+        progressPercent: 75,
+        alternativeActivityProgressPercent: 50,
+        progressionThresholdReps: 22,
+        remainingRepsToProgression: 7,
+        progressionPercent: 0,
+        isComplete: true,
+        isProgressionReady: false
+      })
+    )
+
+    expect(card.text()).toContain('7 reps to level up')
+    expect(card.get('[role="progressbar"]').attributes()).toMatchObject({
+      'aria-label': 'Level-up progress for Push-ups: 5 of 12 extra reps',
+      'aria-valuenow': '5',
+      'aria-valuemax': '12'
+    })
+    expect(card.get('.exercise-card__progress-fill').attributes('style')).toBe(
+      'width: 42%;'
+    )
+  })
+
   it('announces when enough extra effort has made the level-up ready', () => {
     const card = showCard(
       givenProgress({

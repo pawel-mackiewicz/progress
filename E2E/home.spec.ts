@@ -405,8 +405,12 @@ async function thenTheDayIsClearedWithoutClaimingExtraReps(page: Page) {
       'aria-valuenow',
       '0'
     )
+    await expect(progressFor(page, 'Push-ups')).toHaveAttribute(
+      'aria-valuemax',
+      '17'
+    )
     await expect(progressFor(page, 'Push-ups')).toHaveAccessibleName(
-      'Level-up progress for Push-ups: 0 of 2 extra reps'
+      'Level-up progress for Push-ups: 0 of 17 extra reps'
     )
   })
 }

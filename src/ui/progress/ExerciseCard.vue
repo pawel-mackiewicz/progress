@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { Check, ChevronUp, Flame, Pencil, Zap } from '@lucide/vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { REP_INCREMENTS, type DashboardExercise } from '@/progress/types'
 import { PROGRESS_MESSAGES } from '@/ui/progress/Progress.messages'
 
-defineProps<{
+const props = defineProps<{
   exercise: DashboardExercise
   collapsible?: boolean
 }>()
@@ -20,6 +21,23 @@ const { t } = useI18n({
   useScope: 'local',
   messages: PROGRESS_MESSAGES
 })
+
+const progressionGoal = computed(
+  () =>
+    props.exercise.progressionThresholdReps - props.exercise.effectiveDailyGoal
+)
+const progressionCurrent = computed(() =>
+  Math.min(
+    Math.max(
+      props.exercise.completedReps - props.exercise.effectiveDailyGoal,
+      0
+    ),
+    progressionGoal.value
+  )
+)
+const progressionPercent = computed(() =>
+  Math.round((progressionCurrent.value / progressionGoal.value) * 100)
+)
 </script>
 
 <template>
@@ -164,11 +182,8 @@ const { t } = useI18n({
         exercise.isComplete
           ? t('card.progressionProgress', {
               name: exercise.name,
-              current: Math.min(
-                Math.max(exercise.completedReps - exercise.dailyGoal, 0),
-                exercise.progressionThresholdReps - exercise.dailyGoal
-              ),
-              goal: exercise.progressionThresholdReps - exercise.dailyGoal
+              current: progressionCurrent,
+              goal: progressionGoal
             })
           : exercise.alternativeActivityProgressPercent > 0
             ? t('card.progressWithAlternative', {
@@ -184,16 +199,11 @@ const { t } = useI18n({
               })
       "
       :aria-valuemax="
-        exercise.isComplete
-          ? exercise.progressionThresholdReps - exercise.dailyGoal
-          : exercise.dailyGoal
+        exercise.isComplete ? progressionGoal : exercise.dailyGoal
       "
       :aria-valuenow="
         exercise.isComplete
-          ? Math.min(
-              Math.max(exercise.completedReps - exercise.dailyGoal, 0),
-              exercise.progressionThresholdReps - exercise.dailyGoal
-            )
+          ? progressionCurrent
           : Math.min(
               exercise.completedReps +
                 exercise.dailyGoal -
@@ -207,9 +217,7 @@ const { t } = useI18n({
         class="exercise-card__progress-fill"
         :style="{
           width: `${
-            exercise.isComplete
-              ? exercise.progressionPercent
-              : exercise.progressPercent
+            exercise.isComplete ? progressionPercent : exercise.progressPercent
           }%`
         }"
       />

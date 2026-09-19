@@ -145,6 +145,39 @@ export const ProgressionInProgress: Story = {
   }
 }
 
+export const ProgressionAfterOtherActivity: Story = {
+  args: {
+    exercise: createDashboardExercise({
+      dailyGoal: 20,
+      effectiveDailyGoal: 10,
+      completedReps: 15,
+      remainingReps: 0,
+      progressPercent: 75,
+      alternativeActivityProgressPercent: 50,
+      progressionThresholdReps: 22,
+      remainingRepsToProgression: 7,
+      progressionPercent: 0,
+      isComplete: true,
+      isProgressionReady: false
+    })
+  },
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement)
+
+    await step(
+      'The level-up bar starts at the finish reduced by other activity',
+      async () => {
+        const progress = canvas.getByRole('progressbar', {
+          name: 'Postęp do awansu dla Pompki: 5 z 12 dodatkowych powtórzeń'
+        })
+
+        await expect(progress).toHaveAttribute('aria-valuenow', '5')
+        await expect(progress).toHaveAttribute('aria-valuemax', '12')
+      }
+    )
+  }
+}
+
 export const ProgressionReady: Story = {
   args: {
     exercise: createDashboardExercise({

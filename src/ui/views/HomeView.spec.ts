@@ -1105,8 +1105,9 @@ describe('today’s arcade training dashboard', () => {
       "Today's plan is complete. Keep the streak alive."
     )
     expect(dashboard.get('[role="progressbar"]').attributes()).toMatchObject({
+      'aria-label': 'Level-up progress for Push-ups: 0 of 17 extra reps',
       'aria-valuenow': '0',
-      'aria-valuemax': '2'
+      'aria-valuemax': '17'
     })
     expect(
       dashboard.find('.home-exercises__progress-alternative').exists()
